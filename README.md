@@ -1,2 +1,3 @@
 # wrapanime
 Blender add-on for animation by python script
+Work in progress...
