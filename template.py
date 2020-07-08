@@ -16,11 +16,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-__author__ = "Alain Bernard"
-__copyright__ = "Copyright 2020, Alain Bernard"
-__credits__ = ["Alain Bernard"]
-__license__ = "GPL"
-__version__ = "3.0"
+__author__     = "Alain Bernard"
+__copyright__  = "Copyright 2020, Alain Bernard"
+__credits__    = ["Alain Bernard"]
+__license__    = "GPL"
+__version__    = "3.0"
 __maintainer__ = "Alain Bernard"
-__email__ = "wrapanime@ligloo.net"
-__status__ = "Development"
+__email__      = "wrapanime@ligloo.net"
+__status__     = "Development"

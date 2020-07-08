@@ -17,7 +17,11 @@ from wrapanime.utils import cy_object
 from wrapanime.utils.errors import WrapException
 from wrapanime.utils import geometry as geo
 from wrapanime.root import root
-from wrapanime.root import generated_wrappers as wgen
+
+from wrapanime.wrappers.generated_wrappers import WObject, WMesh, WCurve
+from wrapanime.wrappers import generated_wrappers as wgen
+
+import wrapanime.cython.bezier as wbez
 
 import importlib
 importlib.reload(geo)
@@ -29,110 +33,15 @@ importlib.reload(root)
 # To vector
 
 def to_vector(value, dim=3):
-    return to_array(value, [dim], f"(to_vector) single value or a {dim}-vector, not {value}"
+    return root.to_array(value, [dim], f"(to_vector) single value or a {dim}-vector, not {value}")
 
-# =============================================================================================================================
-# Mesh data
-
-class WMesh(wgen.WMesh):
-    pass
-
-# =============================================================================================================================
-# Curve data
-
-class WCurve(wgen.WCurve):
-    pass
-
-# =============================================================================================================================
-# Object Wrapper
-# Root for other high level objects
-
-class WObject(wgen.WObject):
-
-    def __init__(self, obj):
-
-        super().__init__(WObject.get_object(obj), None)
-        self._eval_object = None
-        self._averts      = None
-
-    @classmethod
-    def get_object(cls, obj):
-        if type(obj) is str:
-            o = bpy.data.objects.get(obj)
-            if o is None:
-                raise errors.WrapException("Impossible de initialize wrapper: Blender object '{}' not found".format(obj))
-            obj = o
-        return obj
-
-    def erase_cache(self):
-        super().erase_cache()
-        self._eval_object = None
-        self._averts      = None
-
-    @property
-    def eval_object(self):
-        if self._eval_object is None:
-            depsgraph = bpy.context.evaluated_depsgraph_get()
-            evobj = self.obj.evaluated_get(depsgraph)
-            self._eval_object = evobj
-
-        return self._eval_object
-
-    @property
-    def full_matrix(self):
-        return self.obj.matrix_world
-
-    @property
-    def rot_matrix(self):
-        return self.obj.matrix_world.to_3x3().normalized().to_4x4()
-
-    @property
-    def quaternion(self):
-        if self.rotation_mode == 'QUATERNION':
-            return self.rotation_quaternion
-        else:
-            return self.rotation_euler.to_quaternion()
-
-    @quaternion.setter
-    def quaternion(self, value):
-        if self.rotation_mode == 'QUATERNION':
-            self.rotation_quaternion = value
-        else:
-            self.rotation_euler = value.to_euler(self.rotation_euler.order)
-
-    @property
-    def hide(self):
-        return self.hide_render
-
-    @hide.setter
-    def hide(self, value):
-        self.hide_render   = value
-        self.hide_viewport = value
-
-    # transformation
-
-    def orient(self, axis):
-        self.quaternion = geo.tracker_quaternion(self.track_axis, axis, up=self.up_axis)
-
-    def track_to(self, location):
-        self.quaternion = geo.tracker_quaternion(self.track_axis, Vector(location)-self.location, up=self.up_axis)
-
-    # Distance
-
-    def distance(self, location):
-        return (Vector(location)-self.location).length
 
 # =============================================================================================================================
 # Empty object wrapper
 
 class WEmpty(WObject):
     def __init__(self, obj):
-
-        obj = WObject.get_object(obj)
-
-        if obj.type != 'EMPTY':
-            wa_utils.error("Empty object wrapper initialization error", obj, "Object {} type must be 'EMPTY' not '{}'.".format(obj.name, obj.type))
-
+        obj = WObject.get_object(obj, 'EMPTY')
         super().__init__(obj)
 
 # =============================================================================================================================
@@ -141,10 +50,7 @@ class WEmpty(WObject):
 class WMeshObject(WObject):
     def __init__(self, obj):
 
-        obj = WObject.get_object(obj)
-
-        if obj.type != 'MESH':
-            wa_utils.error("Mesh object wrapper initialization error", obj, "Object {} type must be 'MESH' not '{}'.".format(obj.name, obj.type))
+        obj = WObject.get_object(obj, 'MESH')
 
         super().__init__(obj)
         self.wmesh = WMesh(self.obj.data, self)
@@ -186,14 +92,14 @@ class WMeshObject(WObject):
     def verts(self, values):
         nverts = len(self.wmesh.vertices)
         shape = (nverts, 3)
-        vals = to_array(values, shape, "a single vector or an array of {} vectors".format(nverts))
+        vals = root.to_array(values, shape, f"a single vector or an array of {nverts} vectors")
         cy_object.set_vertices(self.obj.data, vals, mask='XYZ')
         self._verts = None
 
     def set_verts(self, verts, mask='XYZ'):
         nverts = len(self.wmesh.vertices)
         shape = (nverts, 3)
-        vals = to_array(verts, shape, "a single vector or an array of {} vectors".format(nverts))
+        vals = root.to_array(verts, shape, "a single vector or an array of {} vectors".format(nverts))
         cy_object.set_vertices(self.obj.data, vals, mask=mask)
         self._verts = None
 
@@ -239,25 +145,58 @@ class WMeshObject(WObject):
             self._edges = [[self.verts[edge.vertices[0]], self.verts[edge.vertices[1]]] for edge in mesh.edges]
         return self._edges
 
+
 # =============================================================================================================================
-# Mesh object wrapper
+# Curve object wrapper
 
 class WCurveObject(WObject):
     def __init__(self, obj):
+        obj = WObject.get_object(obj, 'CURVE')
+        self.wcurve = WCurve(self.data)
+        
+    @property
+    def bezier_curve(self):
+        splines = self.wcurve.wsplines.obj
+        spline = splines[0]
+        
+        bp = spline.bezier_points
+        
+        count  = len(bp)
+        
+        points = np.zeros(count*3, np.float).reshape[count, 3]
+        
+        bp.foreach_get('co',           points[:, 0, :].reshape(count*3))
+        bp.foreach_get('handle_left',  points[:, 1, :].reshape(count*3))
+        bp.foreach_get('handle_right', points[:, 2, :].reshape(count*3))
+        
+        return points
+    
+    
+    @bezier_curve.setter
+    def bezier_curve(self, points):
+    
+        points = wbez.check_bezier_curve_points(points)
+        count  = points.shape[0]
+        
+        splines = self.wcurve.wsplines.obj
+        splines.clear()
+        spline = splines.new('BEZIER')
+        
+        bp = spline.bezier_points
+        
+        bp.add(count-len(bp))
+        
+        bp.foreach_set('co',           points[:, 0, :].reshape(count*3))
+        bp.foreach_set('handle_left',  points[:, 1, :].reshape(count*3))
+        bp.foreach_set('handle_right', points[:, 2, :].reshape(count*3))
+        
 
-        obj = WObject.get_object(obj)
+    def set_function(self, f, x0, x1, count=100):
+        self.bezier_curve = wbez.Mapper.FromFunction(f, x0, x1, count=count).to_3D()
 
-        if obj.type != 'CURVE':
-            raise WrapException(
-                "Curve object wrapper initialization error", obj,
-                f"Object {obj.name} type must be 'CURVE' not '{obj.type}'."
-
-        super().__init__(obj)
-        self.wcurve = WCurve(self.obj.data, self)
-
-    def set_bezier(self, values):
-        vals = np.array(values)
-        if len(vals.shape) != 3 and vals.shape[1:] != (3, 3)
+    def set_curve_function(self, f, t0, t1, count=100):
+        self.bezier_curve = wbez.BezierCurve.FromFunction(f, t0, t1, count=count).points
+        
 
 # =============================================================================================================================
 # Wrap a Blender object
@@ -276,9 +215,3 @@ def wrap(obj):
             "Object not wrappable", obj,
             f"No wrapper is implemented for type '{obj.type}'")
 
-# =============================================================================================================================
-# Array of WMeshObject
-
-class ArrayOfWObject(wgen.ArrayOfWObject):
-    def wrap(self, obj):
-        return wrap(obj)

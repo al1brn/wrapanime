@@ -10,6 +10,11 @@ import itertools
 
 import numpy as np
 
+import bpy
+from mathutils import Vector, Quaternion
+
+from wrapanime.utils import geometry as geo
+
 import wrapanime.cython.arrays as arrays
 from wrapanime.utils.errors import WrapShapeException, WrapException
 
@@ -120,9 +125,9 @@ def vectorize(values, shape, caller="unknown"):
 
 class ArrayOf():
 
-    def __init__(self, Cls, wowner):
-        self.Cls    = Cls
+    def __init__(self, wowner, Cls):
         self.wowner = wowner
+        self.Cls    = Cls
         self._array = np.empty(0, 'object')
 
     def wrap(self, obj):
@@ -207,3 +212,112 @@ class Wrapper():
 
     def erase_cache(self):
         pass
+    
+# *****************************************************************************************************************************
+# Collection wrapper
+# Eg: vertices collection in a mesh
+
+class CollWrapper():
+
+    def __init__(self, coll, wowner, Cls):
+        self.coll   = coll
+        self.wowner = wowner
+        self.Cls    = Cls
+        
+    def __len__(self):
+        return len(self.coll)
+    
+    def __getitem__(self, index):
+        return self.Cls(self.coll[index])
+
+    # loop
+    def for_each(self, f, **kwargs):
+        for w in self:
+            f(w, **kwargs)
+            
+# *****************************************************************************************************************************
+# Enrich WObject with usefull methods
+# The Object wrapper will use this class and provide ArraOf methods            
+            
+class WObjectRoot(Wrapper):
+
+    def __init__(self, obj):
+        super().__init__(WObjectRoot.get_object(obj), None)
+        self._eval_object = None
+        self._averts      = None
+
+    @classmethod
+    def get_object(cls, obj, otype=None):
+        if type(obj) is str:
+            o = bpy.data.objects.get(obj)
+            if o is None:
+                raise WrapException(f"Impossible de initialize wrapper: Blender object '{obj}' not found")
+            obj = o
+        if otype is not None:
+            if obj.type !=  otype:
+                raise WrapException(
+                        f"{cls.__name__} wrapper expect Blender object of type '{otype}'.",
+                        f"Blender object '{obj.name}' is type'{obj.type}'."
+                    )
+        return obj
+
+    def erase_cache(self):
+        super().erase_cache()
+        self._eval_object = None
+        self._averts      = None
+
+    @property
+    def eval_object(self):
+        if self._eval_object is None:
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            evobj = self.obj.evaluated_get(depsgraph)
+            self._eval_object = evobj
+
+        return self._eval_object
+
+    @property
+    def full_matrix(self):
+        return self.obj.matrix_world
+
+    @property
+    def rot_matrix(self):
+        return self.obj.matrix_world.to_3x3().normalized().to_4x4()
+    
+    # Properties which will be vectorized
+
+    @property
+    def quaternion(self):
+        if self.rotation_mode == 'QUATERNION':
+            return self.rotation_quaternion
+        else:
+            return self.rotation_euler.to_quaternion()
+
+    @quaternion.setter
+    def quaternion(self, value):
+        if self.rotation_mode == 'QUATERNION':
+            self.rotation_quaternion = value
+        else:
+            self.rotation_euler = value.to_euler(self.rotation_euler.order)
+
+    @property
+    def hide(self):
+        return self.obj.hide_render
+
+    @hide.setter
+    def hide(self, value):
+        self.obj.hide_render   = value
+        self.obj.hide_viewport = value
+
+    # transformation
+
+    def orient(self, axis):
+        self.quaternion = geo.tracker_quaternion(self.track_axis, axis, up=self.up_axis)
+
+    def track_to(self, location):
+        self.quaternion = geo.tracker_quaternion(self.track_axis, Vector(location)-self.location, up=self.up_axis)
+
+    # Distance
+
+    def distance(self, location):
+        return (Vector(location)-self.location).length            
+

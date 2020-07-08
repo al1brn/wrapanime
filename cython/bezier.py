@@ -160,7 +160,7 @@ class BezierCurve():
         
     def __call__(self, x):
         return bezier_loc(self.points, (x-self.x0)/self.length)
-        
+    
     @classmethod
     def FromFunction(Cls, f, x0=0., x1=1., count=100):
         count  = max(count, 10)
@@ -174,19 +174,19 @@ class BezierCurve():
         def derivative(x):
             return (np.array(f(x+dt)) - np.array(f(x-dt)))/2/dt
         
-        points = np.zeros(count, 3, 3, np.float)
+        points = np.zeros((count, 3, 3), np.float)
         
         for i in range(count):
             x = x0 + i*dx
             
             P = np.array(f(x))
             D = derivative(x)
-            L = P - D/3
-            R = P + D/3
+            L = P - D/3*dx
+            R = P + D/3*dx
             
-            points[count, 0] = P
-            points[count, 1] = L
-            points[count, 2] = R
+            points[i, 0] = P
+            points[i, 1] = L
+            points[i, 2] = R
             
         return BezierCurve(points, x0=x0, x1=x1)
 
@@ -531,6 +531,16 @@ class Mapper(ClipMapper):
             return even_bezier_func(self.points, self.clip(x))
         else:
             return bezier_func(self.points, self.clip(x))
+        
+    @classmethod
+    def to_3D(self, perp='Y'):
+        if perp == 'X':
+            return np.insert(self.points, 0, 0., axis=1)
+        elif perp == 'Y':
+            return np.insert(self.points, 1, 0., axis=1)
+        else:
+            return np.insert(self.points, 2, 0., axis=1)
+        
     
     # Class methods returning predefined mappers
     @classmethod

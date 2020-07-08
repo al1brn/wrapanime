@@ -1,3 +1,5 @@
+import itertools
+
 from math import sin, cos, tan, atan2, pi, sqrt
 
 import numpy as np
@@ -5,6 +7,8 @@ import numpy as np
 import bpy
 
 from mathutils import Vector, Euler, Matrix, Quaternion
+
+from wrapanime.utils.errors import WrapException
 
 # ******************************************************************************************************************************************************
 # ******************************************************************************************************************************************************
@@ -41,7 +45,9 @@ def get_axis(axis):
         elif L == 'Z':
             return fact*Vector((0., 0., 1.))
         else:
-            error_header("get_axis ERROR", message="Unknown axis specification: '{}' not in 'XYZ'.".format(axis))
+            raise WrapException(
+                    f"get_axis ERROR: unknown axis specification: '{axis}' not in 'XYZ'."
+                    )
 
     return Vector(axis)
 
@@ -65,7 +71,10 @@ def tracker_quaternion(axis, target_axis, up='Y', up_direction='Z'):
     try:
         angle = tax.angle(ax)
     except:
-        error_header("tracker_quaternion ERROR: Axis or Target Axis is null !", message="axis: {} ({}), target: {} ({})".format(ax, axis, tax, target_axis))
+        raise WrapException(
+                "tracker_quaternion ERROR: Axis or Target Axis is null !",
+                f"axis: {ax} ({axis}), target: {tax} ({target_axis})"
+                )
 
     P = tax.cross(ax)
     q = Quaternion(P, -angle)
@@ -93,6 +102,13 @@ def tracker_quaternion(axis, target_axis, up='Y', up_direction='Z'):
     return q
 
 # *****************************************************************************************************************************
+# A matrix to orient a figure drawn in XY plane perpendicular to an arbitrary axis
+        
+def XY_rotation(axis='Z', up='X'):
+    return tracker_quaternion('Z', target_axis=axis, up=up)
+
+
+# *****************************************************************************************************************************
 # Orienter (Build in progress)
 
 class Orienter():
@@ -113,44 +129,4 @@ class Orienter():
         item.quaternion = q
 
 
-# *****************************************************************************************************************************
-# *****************************************************************************************************************************
 
-
-def to_spherical(V):
-
-    Vxy = Vector((V[0], V[1]))
-
-    theta = atan2(Vxy.y, Vxy.x)
-    phi   = atan2(V[2], Vxy.length)
-
-    return (Vector(V).length, theta, phi)
-
-def to_cylindric(V):
-    Vxy = Vector((V[0], V[1]))
-
-    theta = atan2(Vxy.y, Vxy.x)
-    return (Vxy.length, theta, V[2])
-
-# ******************************************************************************************************************************************************
-# ******************************************************************************************************************************************************
-# Geom
-# ******************************************************************************************************************************************************
-# ******************************************************************************************************************************************************
-
-def linear(v, space=(0., 1.), output=(0., 1.)):
-    res = output[0] + (v-space[0])/(space[1]-space[0])*(output[1]-output[0])
-    #print(v, space, output, res)
-    if output[0] < output[1]:
-        res = min(output[1], max(output[0], res))
-        #print("-->", res)
-    else:
-        res = min(output[0], max(output[1], res))
-    return res
-
-def mixer(v0, v1, factor, extrapolation='CONSTANT'):
-    v = (1.-factor)*v0 + factor*v1
-    if v0 < v1:
-        v = min(v1, max(v0, v))
-    else:
-        v = min(v1, max(v0, v))

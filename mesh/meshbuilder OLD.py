@@ -19,9 +19,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-Created: June 8 2020
-Author: Alain Bernard
 """
 
 import itertools
@@ -34,14 +31,416 @@ from mathutils import Matrix, Vector, Quaternion
 from math import cos, sin, radians, pi
 
 from wrapanime.utils.errors import WrapException
-from wrapanime.mesh.topology import Topology
-from wrapanime.mesh.surface import Surface
-from wrapanime.utils.vert_array import VertArray
-import wrapanime.utils.blender as wbl
 import wrapanime.utils.geometry as wgeo
+import wrapanime.utils.blender as wbl
+from wrapanime.utils.vert_array import VertArray
+
+def clip(v, vmin, vmax):
+    """A basic clipper"""
+    return min(vmax, max(vmin, v))
+
+def plane_vertex(x, y, z=0.):
+    """Interprets 2 values as cartesian coordinates"""
+    return [y, x, z]
+
+def cylinder_vertex(z, theta, rho=1.):
+    """Interprets 2 values as cylindrical coordinates"""
+    return [rho*cos(theta), rho*sin(theta), z]
+
+def torus_vertex(theta_major, theta_minor, radius_minor=0.25):
+    """Interprets 2 values as torus coordinates"""
+    M = Matrix.Rotation(theta_major, 3, 'Z')
+    V = radius_minor*Vector((cos(theta_minor), 0., sin(theta_minor)))
+    W = M @ V
+    return W + Vector((cos(theta_major), sin(theta_major), 0.))
+
+def cone_vertex(rho, theta, slope=2.):
+    """Interprets 2 values as polar coordinates"""
+    return [rho*cos(theta), rho*sin(theta), rho*slope]
+
+def sphere_vertex(phi, theta, radius=1.):
+    """Interprets 2 values as spherical coordinates"""
+    r = radius*cos(phi)
+    return [r*cos(theta), r*sin(theta), radius*sin(phi)]
 
 # -----------------------------------------------------------------------------------------------------------------------------
+# Topology
+
+class Topology():
+    """Build the faces of a parameterized surface based on its topolgy.
+    
+    There are five possible topology:
+    - PLANE      : topology is open on both x and y
+    - CYLINDER   : topology is open on x and loop on y
+    - TORUS      : topology loops both on x and y
+    - CONE       : as CYLINDER plus a pole
+    - SPHERE     : as CYLINDER plus two poles
+    
+    This class offers utilies to iter through the two dimensions.
+    
+    The 'vertex' method is initialized with one of the xxx_vertex
+    based on the topology.
+    
+    Parameters
+    ----------
+    topology: str in ['PLANE', 'CYLINDER', 'TORUS', 'CONE', 'SPHERE']
+        Topology code
+    rings: int
+        Number of rings (x dimension)
+    segments: int
+        Number of segments per rings (y dimension)
+    size: float
+        Amplitude of open dimension
+    """
+
+    TOPOLOGIES = ['PLANE', 'CYLINDER', 'TORUS', 'CONE', 'SPHERE']
+
+    def __init__(self, topology, rings, segments, size=1.):
+        self.check_topology(topology)
+        self.topology  = topology
+        self.rings     = clip(rings,    1, 1000)
+        self.segments  = clip(segments, 1, 1000)
+        self.size      = size
+
+        self.poles = 0
+        if self.topology == 'SPHERE':
+            self.poles = 2
+        elif self.topology == 'CONE':
+            self.poles = 1
+
+        if self.topology == 'PLANE':
+            self._vertex = plane_vertex
+            self.rings    = max(self.rings,    2)
+            self.segments = max(self.segments, 2)
+            
+        elif self.topology == 'CYLINDER':
+            self._vertex = cylinder_vertex
+            self.rings    = max(self.rings, 2)
+
+        elif self.topology == 'TORUS':
+            self._vertex = torus_vertex
+            self.rings    = max(self.rings, 2)
+
+        elif self.topology == 'CONE':
+            self._vertex = cone_vertex
+
+        elif self.topology == 'SPHERE':
+            self._vertex = sphere_vertex
+            
+    def vertex(self, x, y, value):
+        return self._vertex(x, y, value)
+
+    @classmethod
+    def check_topology(Cls, topology):
+        """Check that the topology is ok
+        
+        Parameters
+        ----------
+        topology: str in ['PLANE', 'CYLINDER', 'TORUS', 'CONE', 'SPHERE']
+            The topology to test
+            
+        Raises
+        ------
+        WrapException: if topology is incorrect
+        """
+            
+        if not topology in Cls.TOPOLOGIES:
+            raise WrapException("Topology error",
+                f"The topology '{topology}' is not valid. it must be in {Cls.TOPOLOGIES}"
+                )
+
+    @property
+    def verts_count(self):
+        """Number of vertices
+        
+        The number of vertices is rings*segments plus the number of poles (0, 1 or 2)
+        """
+        return self.rings*self.segments + self.poles
+
+    def pole_index(self, pole):
+        """Vertex index of the pole.
+        
+        Parameters
+        ----------
+        pole: int
+            Pole index (1 or 2)
+            
+        Returns
+        -------
+        int
+            Vertex index of the pole
+        """
+        return self.rings*self.segments + pole
+
+    def pole_vertex(self, pole):
+        """Vertex of the pole.
+        
+        Parameters
+        ----------
+        pole: int
+            Pole index (1 or 2)
+            
+        Returns
+        -------
+        array of 3 floats
+            Pole vertex
+        """
+        
+        if self.topology == 'CONE':
+            return [0., 0., 2*self.size]
+        elif self.topology == 'SPHERE':
+            if pole == 0:
+                return [0., 0., 1.]
+            else:
+                return [0., 0., -1.]
+            
+    def pole_coord(self, pole):
+        """Coordinates to compute the pole vertex.
+        
+        Parameters
+        ----------
+        pole: int
+            Pole index (1 or 2)
+            
+        Returns
+        -------
+        couple of Floats
+            x, y coordinates to compute the pole
+        """
+        if self.topology == 'CONE':
+            return (0., 0.)
+        elif self.topology == 'SPHERE':
+            if pole == 0:
+                return (pi/2, 0.)
+            else:
+                return (-pi/2, 0.)
+        
+
+    def ij(self, index):
+        """Compute the i and j indices from the linear index.
+        
+        Parameters
+        ----------
+        index: int
+            A valid vertex index in [0, verts_count["
+            
+        Returns
+        -------
+        2-tuple
+            (i, j) parameters of the indexed vertex
+        """
+        return divmod(index, self.segments)
+
+    def vert_index(self, i, j):
+        """Linear index of (i, j) surface parameters.
+        
+        Parameters
+        ----------
+        i: int
+            First parameter
+        
+        j: int
+            Second Parameter
+            
+        Returns
+        -------
+        int
+            The vertex linear index
+        """
+        return (i % self.rings)*self.segments + (j % self.segments)
+
+    def rings_iter(self):
+        """Iterator on the rings.
+        
+        Depending if the ring topology is closed (TORUS, SPHERE), the loop
+        is on [0, 2*pi[ or on [-size/S, size/2]
+        
+        Returns
+        -------
+        float iterator
+        """
+        if self.topology == 'PLANE':
+            x0 = self.size/2
+            dx = -self.size/(self.rings-1)
+            return map(lambda i: x0 + i*dx, range(self.rings))
+        
+        elif self.topology == 'CYLINDER':
+            x0 = self.size/2
+            dx = -self.size/(self.rings-1)
+            return map(lambda i: x0 + i*dx, range(self.rings))
+        
+        elif self.topology == 'TORUS':
+            dag = 2*pi/self.rings
+            return map(lambda i: i*dag, range(self.rings))
+        
+        elif self.topology == 'CONE':
+            x0 = self.size
+            dx = -self.size/self.rings
+            return map(lambda i: x0 + i*dx, range(self.rings))
+        
+        elif self.topology == 'SPHERE':
+            dag = pi/(self.rings+1)
+            ag0 = pi/2-dag
+            return map(lambda i: ag0 - i*dag, range(self.rings))
+
+    def segments_iter(self):
+        """Iterator on the segments.
+        
+        Depending if the segment topology is closed (all but PLANE), the loop
+        is on [0, 2*pi[ or on [-size/S, size/2]
+        
+        Returns
+        -------
+        float iterator
+        """
+        
+        if self.topology == 'PLANE':
+            y0 = -self.size/2
+            dy = self.size/(self.segments-1)
+            return map(lambda j: y0 + j*dy, range(self.segments))
+        
+        elif self.topology == 'CYLINDER':
+            dag = 2*pi/self.segments
+            return map(lambda j: j*dag, range(self.segments))
+        
+        elif self.topology == 'TORUS':
+            dag = 2*pi/self.segments
+            return map(lambda j: j*dag, range(self.segments))
+        
+        elif self.topology == 'CONE':
+            dag = 2*pi/self.segments
+            return map(lambda j: j*dag, range(self.segments))
+        
+        elif self.topology == 'SPHERE':
+            dag = 2*pi/self.segments
+            return map(lambda j: j*dag, range(self.segments))
+
+    def verts(self, f=None):
+        """Computes the vertices of the surface.
+        
+        Parameters
+        ----------
+        f: function or None
+            Two possible templates
+                f(x, y) -> Vector
+            or
+                f(x y) -> Float
+        
+        Returns
+        -------
+        array of vectors
+        """
+        
+        # If the function returns a single float, must compute
+        # the vertex
+        def vcompute(x, y):
+            return self._vertex(x, y, f(x, y))
+        
+        def vcomp_st(x, y):
+            return self._vertex(x, y, self.size)
+        
+        # Check the size of the function
+        if f is None:
+            if self.topology in ['TORUS', 'SPHERE']:
+                calc = vcomp_st
+            else:
+                calc = self._vertex
+        elif np.array(f(0., 0.)).size == 1:
+            calc = vcompute
+        else:
+            calc = f
+            
+        # Resulting vertices
+
+        verts = VertArray(self.verts_count)
+        for i, (x, y) in zip(itertools.count(0), itertools.product(self.rings_iter(), self.segments_iter())):
+            verts[i] = calc(x, y)
+            
+        for i in range(self.poles):
+            x, y = self.pole_coord(i)
+            verts[self.pole_index(i)] = calc(x, y)
+
+        return verts
+
+    def faces(self):
+        """Computes the faces.
+        
+        The faces are arrays of vertex indices
+        
+        Returns
+        -------
+        array of array of int
+        """
+        
+        # Faces without the poles
+        faces = []
+        imax = self.rings if self.topology in ['TORUS'] else self.rings-1
+        jmax = self.segments if self.topology in ['CYLINDER', 'TORUS', 'CONE', 'SPHERE'] else self.segments-1
+        for i in range(imax):
+            for j in range(jmax):
+                faces.append([self.vert_index(i, j), self.vert_index(i+1, j), self.vert_index(i+1, j+1), self.vert_index(i, j+1)])
+
+        # poles
+        if self.poles > 0:
+            pole = self.pole_index(0)
+            for j in range(jmax):
+                faces.append([pole, self.vert_index(0, j), self.vert_index(0, j+1)])
+
+        if self.poles > 1:
+            pole = self.pole_index(1)
+            for j in range(jmax):
+                faces.append([pole, self.vert_index(self.rings-1, j), self.vert_index(self.rings-1, j+1)])
+
+        return faces
+
+    def uvs(self):
+        """Computes the uv mappings.
+        
+        Returns
+        -------
+        array of array of 2-vectors
+        """
+        
+        # Faces without the poles
+        uvs = []
+        imax = self.rings if self.topology in ['TORUS'] else self.rings-1
+        jmax = self.segments if self.topology in ['CYLINDER', 'TORUS', 'CONE', 'SPHERE'] else self.segments-1
+        du = 1./(imax + self.poles)
+        dv = 1./jmax
+        u0 = du if self.poles > 0 else 0.
+
+        for i in range(imax):
+            u = u0+i*du
+            for j in range(jmax):
+                v = j*dv
+                #uvs.append([(u, v), (u+du, v), (u+du, v+dv), (u, v+dv)])
+                uvs.append([(v, 1.-u), (v, 1.-u-du), (v+dv, 1.-u-du), (v+dv, 1.-u)])
+
+        # poles
+        if self.poles > 0:
+            #pole = self.pole_index(0)
+            for j in range(jmax):
+                v = j*dv
+                uvs.append([(v+dv/2, 1.), (v, 1.-du), (v+dv, 1.-du)])
+
+        if self.poles > 1:
+            #pole = self.pole_index(1)
+            for j in range(jmax):
+                v = j*dv
+                uvs.append([(v+dv/2, 0.), (v, du), (v+dv, du)])
+
+        return uvs
+
+
+# ******************************************************************************************************************************************************
+# ******************************************************************************************************************************************************
+# Helpers to build meshes
+# ******************************************************************************************************************************************************
+# ******************************************************************************************************************************************************
+
+# ======================================================================================================================================================
 # Remove doubles
+# ======================================================================================================================================================
 
 def remove_doubles_object(obj, dist):
 
@@ -57,8 +456,9 @@ def remove_doubles_object(obj, dist):
     obj.data.validate()
     obj.data.update()
 
-# -----------------------------------------------------------------------------------------------------------------------------
+# ======================================================================================================================================================
 # Helper to build meshes
+# ======================================================================================================================================================
 
 class MeshBuilder():
     """ Mesh builder helper.
@@ -293,15 +693,21 @@ class MeshBuilder():
     # =============================================================================
 
     @classmethod
-    def FromSurface(cls, surface, t=None):
+    def FromFunction(cls, f=None, topology='PLANE', rings=10, segments=10, size=1., secure=False):
         """Return a MeshBuilder initialized with a given topology.
         
         Parameters
         ----------
-        surface: Surface
-            The surface to compute the vertices
-        t: float or None
-            The time value for the function in the surface
+        f: function or None
+            Function of template: f(x, y) --> vertex
+        topology: str in ['PLANE', 'CYLINDER', 'TORUS', 'CONE', 'SPHERE']
+            Topology code
+        rings: int
+            Number of rings (x dimension)
+        segments: int
+            Number of segments per rings (y dimension)
+        size: float, default 1.
+            Used to generate default surface
 
         Returns
         -------
@@ -309,41 +715,13 @@ class MeshBuilder():
             With vertices, faces and uvs read in the topology
         """
         
-        builder = MeshBuilder()
-        builder.add_verts(surface.build(t))
-        builder.add_faces(surface.faces(), surface.uvs())
+        topo = Topology(topology, rings, segments, size=size)
+        
+        builder = MeshBuilder(secure=secure)
+        builder.add_verts(topo.verts(f))
+        builder.add_faces(topo.faces(), topo.uvs())
         
         return builder
-
-    # =============================================================================
-    # Initialize from a Blender object
-    # =============================================================================
-
-    @classmethod
-    def FromMesh(cls, obj):
-        """Return a MeshBuilder initialized with a given topology.
-        
-        Parameters
-        ----------
-        surface: Surface
-            The surface to compute the vertices
-        t: float or None
-            The time value for the function in the surface
-
-        Returns
-        -------
-        MeshBuilder
-            With vertices, faces and uvs read in the topology
-        """
-        
-        obj = wbl.get_object(obj, otype='MESH')
-        
-        builder = MeshBuilder()
-        builder.verts.set_length(len(obj.data.vertices))
-        obj.data.vertices.foreach_get('co', builder.verts.linear_array)
-        
-        return builder
-
 
     # =============================================================================
     # Merge
@@ -447,20 +825,13 @@ class MeshBuilder():
         # Only if their exists not None uvs
         none_uvs = self.uvs.count(None)
         if none_uvs < len(self.uvs):
-            
+
             # Create the uv layer
             uv_layer = mesh.uv_layers.new()
 
             # Rapid if uv are specified for all faces
             if none_uvs == 0:
-                print('-'*100)
-                print()
-                print("length self.uvs:", len(self.uvs))
-                print()
                 uvs = [uv_co for uv in self.uvs for uv_co in uv]
-                print("length uvs:", len(uvs))
-                print()
-                
                 for i, uv in enumerate(uv_layer.data):
                     uv.uv = uvs[i]
 
@@ -804,11 +1175,18 @@ class MeshBuilder():
         tuple of Vectors
             The opposite corners of the bounding box
         """
-        vs = self.verts.array
-        return np.array(
-                [min(vs[:, 0]), min(vs[:, 1]), min(vs[:, 2])],
-                [max(vs[:, 0]), max(vs[:, 1]), max(vs[:, 2])]
-                )
+
+        v0 = Vector(self.verts[0])
+        v1 = Vector(self.verts[0])
+        for v in self.verts:
+            v0.x = min(v.x, v0.x)
+            v0.y = min(v.y, v0.y)
+            v0.z = min(v.z, v0.z)
+
+            v1.x = max(v.x, v1.x)
+            v1.y = max(v.y, v1.y)
+            v1.z = max(v.z, v1.z)
+        return v0, v1
 
     # =============================================================================
     # Translation
@@ -826,7 +1204,7 @@ class MeshBuilder():
         npt = np.array(translation)
         if npt.size == 3:
             size = self.verts._array.size
-            self.verts._array = np.add(self.verts._array.reshape(size//3, 3), npt).reshape(size)
+            self.verts._array = np.add(self.verts._array.reshape(size, 3), npt).reshape(size)
         else:
             raise WrapException("MeshBuilder translation error: impossible to translate with vector of size {nps.size}", translation)
 
@@ -844,13 +1222,10 @@ class MeshBuilder():
         angle : float
             The angle to turn
         """
-        
-        q = Quaternion(wgeo.get_axis(axis), angle)
-        
-        # Need inverted matrix for np.matmul 
-        Mi = q.to_matrix().inverted()
-        size = self.verts._array.size
-        self.verts._array = np.matmul(self.verts._array.reshape(size//3, 3), Mi).reshape(size)
+
+        q = Quaternion(Vector(axis).normalized(), angle)
+        for v in self.verts:
+            v.rotate(q)
 
     # =============================================================================
     # scale
@@ -870,7 +1245,7 @@ class MeshBuilder():
             self.verts._array *= value
         elif nps.size == 3:
             size = self.verts._array.size
-            self.verts._array = np.multiply(self.verts._array.reshape(size//3, 3), nps).reshape(size)
+            self.verts._array = np.multiply(self.verts._array.reshape(size, 3), nps).reshape(size)
         else:
             raise WrapException("MeshBuilder scale error: impossible to scale with vector of size {nps.size}", value)
 

@@ -1,5 +1,7 @@
 import bpy
 
+from wrapanime.utils.errors import WrapException
+
 # ******************************************************************************************************************************************************
 # ******************************************************************************************************************************************************
 # Collections
@@ -64,7 +66,91 @@ def link_object(obj, collection=None):
 
 # *****************************************************************************************************************************
 # *****************************************************************************************************************************
+# Shape keys
+    
+def sk_name(name, step=None):
+    return name if step is None else f"{name} {step:03d}"
+
+def get_sk(obj, name, step=None, create=True):
+
+    name = sk_name(name, step)
+    
+    if obj.data.shape_keys is None:
+        if create:
+            obj.shape_key_add(name)
+            obj.data.shape_keys.use_relative = False
+        else:
+            return None
+    
+    # Does the shapekey exists?
+    
+    res = obj.data.shape_keys.key_blocks.get(name)
+    
+    # No !
+    
+    if (res is None) and create:
+        
+        eval_time = obj.data.shape_keys.eval_time 
+        
+        if step is not None:
+            # Ensure the value is correct
+            obj.data.shape_keys.eval_time = step*10
+        
+        res = obj.shape_key_add(name)
+        
+        # Less impact as possible :-)
+        obj.data.shape_keys.eval_time = eval_time
+        
+    return res
+
+def sk_exists(obj, name, step):
+    return get_sk(obj, name, step, create=False) is not None
+
+def set_on_sk(obj, name, step=None):
+    
+    if not sk_exists(obj, name, step):
+        raise WrapException(f"The shape key '{sk_name(name, step)}' doesn't exist in object '{obj.name}'!")
+
+    obj.data.shape_keys.eval_time = get_sk(obj, name, step).frame
+    return obj.data.shape_keys.eval_time
+
+def delete_sk(obj, name=None, step=None):
+    
+    if obj.data.shape_keys is None:
+        return
+    
+    if name is None:
+        obj.shape_key_clear()
+    else:
+        key = get_sk(obj, name, step)
+        if key is not None:
+            obj.shape_key_remove(key)
+
+
+# *****************************************************************************************************************************
+# *****************************************************************************************************************************
 # Utilitaires de gestion des objets
+
+# -----------------------------------------------------------------------------------------------------------------------------
+# Get an object by name of object itself
+            
+def get_object(obj_or_name, mandatory=True, otype=None):
+    if type(obj_or_name) is str:
+        obj = bpy.data.objects.get(obj_or_name)
+    else:
+        obj = obj_or_name
+        
+    if (obj is None) and mandatory:
+        raise WrapException(f"Object '{obj_or_name}' doesn't exist")
+        
+    if (obj is not None) and (otype is not None):
+        if obj.type != otype:
+            raise WrapException(
+                    f"Blender object type error: '{otype}' expected",
+                    f"The type of the Blender object '{obj.name}' is '{obj.type}."
+                    )
+    return obj
+
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Duplication d'un objet et de sa hiérarchie
@@ -136,7 +222,7 @@ def delete_object(obj, children=True):
 
 def smooth_object(obj):
 
-    mesh = Mesh(obj)
+    mesh = obj.data
     for f in mesh.bm.faces:
         f.smooth = True
     mesh.done()

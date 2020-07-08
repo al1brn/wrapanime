@@ -44,10 +44,10 @@ class Function():
         
 
     def derivative(self, t):
-        if self.derivative is None:
+        if self._derivative is None:
             return (self.f(t+self.dt) - self.f(t-self.dt))/2/self.dt
         else:
-            return self.derivative(t)
+            return self._derivative(t)
         
     def __neg__(self):
         return Function(lambda t: -self(t), name=f"-({self.name})")
@@ -95,10 +95,12 @@ class Function():
             t  = t0 + i*dt
             y  = self(t)
             yp = self.derivative(t)
+            
+            print("bezier_points", [t, y])
 
-            points[i][0] = [t,        y]
-            points[i][1] = [t - dt/3, y - yp/3]
-            points[i][2] = [t + dt/3, y + yp/3]
+            points[i, 0] = [t,        y]
+            points[i, 1] = [t - dt/3, y - yp/3]
+            points[i, 2] = [t + dt/3, y + yp/3]
 
         return points
     
@@ -139,7 +141,7 @@ class Function():
 
 # =============================================================================================================================
 # Parameterized curve
-# Return vertices rather than reals
+# Return vertices rather than floats
 
 class PCurve():
     def __init__(self, f, name=None, dt=0.0001):
@@ -151,7 +153,7 @@ class PCurve():
         return f"PCurve: {self.name.replace('_', 't')}"
 
     def __call__(self, t):
-        return self.f(t)
+        return np.array(self.f(t))
     
     def plot(self, t0, t1, count=500, fcomp=None):
         
@@ -203,9 +205,9 @@ class PCurve():
             P = self(t)
             D = self.derivative(t)
 
-            points[i][0] = P
-            points[i][1] = P - D/3.
-            points[i][2] = P + D/3.
+            points[i, 0] = P
+            points[i, 1] = P - D/3.
+            points[i, 2] = P + D/3.
 
         return points
     
@@ -248,6 +250,44 @@ class PCurve():
                 name = "Helicoidal spiral"
         return Function(lambda t: o + np.array([vr*t*cos(w*t), vr*t*sin(w*t), vz*t]), name=name)
     
+# -----------------------------------------------------------------------------------------------------------------------------
+# Mix two values
 
+class Mixer(Function):
+    def __init__(self, f0, f1, mapper=None, name=None):
+        self.f0     = f0
+        self.f1     = f1
+        self.mapper = mapper
+        self.name   = name
+        self.factor = 0.5
+        
+    def __repr__(self):
+        return f"Mixer({self.f0} <{self.mapper}> {self.f1})" if self.name is None else self.name
+        
+    def __call__(self, t):
+        p = self.mapper(self.factor)
+        return self.f0(t)*(1.-p) + self.f1(t)*p
+    
+# -----------------------------------------------------------------------------------------------------------------------------
+# Mix two vectors
 
+class CurveMixer(PCurve):
+    
+    def __init__(self, f0, f1, mapper=None, name=None):
+        self.f0     = f0
+        self.f1     = f1
+        self.mapper = mapper
+        self.name   = name
+        self.factor = 0.5
+        
+    def __repr__(self):
+        return f"CurveMixer({self.f0} <{self.mapper}> {self.f1})" if self.name is None else self.name
+    
+    def __call__(self, factor, t):
+        if self.mapper is None:
+            p = self.factor
+        else:
+            p = self.mapper(factor)
+        return np.array(self.f0(t))*(1.-p) + np.array(self.f1(t))*p
+    
 

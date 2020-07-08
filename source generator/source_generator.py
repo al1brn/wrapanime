@@ -6,11 +6,127 @@ Created on Sat Jun 20 16:47:30 2020
 @author: alain
 """
 
-print("Hello")
-
 import datetime
 
 import props_mapping as wmaps
+
+# *****************************************************************************************************************************
+# Generate Blender Wrapping
+
+def wrappers_file():
+
+    yield "# " + '*'*100
+    yield "# Generated {}".format(datetime.date.today())
+    yield ""
+    yield "import numpy as np"
+    yield "from wrapanime.root.root import ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot"
+    yield ""
+    
+    def generate(gen):
+        for line in gen.wrapper_code():
+            yield line
+            
+        for line in gen.arrayof_code():
+            yield line
+    
+    for line in generate(wmaps.MeshVertexGenerator()):
+        yield line
+        
+    for line in generate(wmaps.EdgeGenerator()):
+        yield line
+    for line in generate(wmaps.LoopGenerator()):
+        yield line
+    for line in generate(wmaps.PolygonGenerator()):
+        yield line
+        
+    for line in generate(wmaps.MeshGenerator()):
+        yield line
+    
+    for line in generate(wmaps.SplineBezierPointGenerator()):
+        yield line
+    for line in generate(wmaps.SplinePointGenerator()):
+        yield line
+    for line in generate(wmaps.SplineGenerator()):
+        yield line
+        
+    for line in generate(wmaps.CurveGenerator()):
+        yield line
+    
+    for line in generate(wmaps.ObjectGenerator()):
+        yield line
+    
+# *****************************************************************************************************************************
+# Write code in a file
+
+def write_code(path_name):
+    with open(path_name, 'w') as f:
+        for line in wrappers_file():
+            print(line)
+            f.write(line + "\n")
+
+
+file_path = '/users/alain/desktop/python.py'
+file_path = '/Users/alain/OneDrive/CloudStation/Blender/scripts/modules/wa_blendergen.py'
+file_path = '/Users/alain/OneDrive/CloudStation/Blender/dev/scripts/modules/wrapanime/wrappers/generated_wrappers.py'
+
+write_code(file_path)
+    
+    
+    
+    
+
+def OLD():
+    # ----- Mesh base classes
+
+    for line in gen_wrapper(wmaps.edge_props, "WEdge"):
+        yield line
+
+    for line in gen_wrapper(wmaps.loop_props, "WLoop"):
+        yield line
+
+    for line in gen_wrapper(wmaps.polygon_props, "WPolygon"):
+        yield line
+
+    for line in gen_wrapper(wmaps.mesh_vertex_props, "WMeshVertex"):
+        yield line
+
+    # Mesh
+
+    for line in gen_wrapper(wmaps.mesh_props, "WMesh"):
+        yield line
+
+    # ----- Curve base classes
+
+    for line in gen_wrapper(wmaps.bezier_spline_point_props, "WBezierSplinePoint"):
+        yield line
+
+    for line in gen_wrapper(wmaps.spline_point_props, "WSplinePoint"):
+        yield line
+
+    for line in gen_wrapper(wmaps.spline_props, "WSpline"):
+        yield line
+
+    # Curve
+
+    for line in gen_wrapper(wmaps.curve_props, "WCurve"):
+        yield line
+
+    # ----- Object
+    
+    for line in gen_wrapper(wmaps.object_props, "WObject"):
+        yield line
+        
+
+
+
+
+
+
+
+
+
+# OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD 
+
 
 def get_cache_name(name):
     return '_cache_' + name
@@ -116,6 +232,33 @@ def gen_wrapped_properties(props):
     yield ""
 
     return
+
+# *****************************************************************************************************************************
+# Shortcuts such as x for location.x
+
+def gen_shortcuts(shortcuts):
+
+    yield com + "="*80
+    yield com + "Some useful shortcuts"
+    yield ""
+
+    for name, (prop, vtype) in shortcuts.items():
+        yield tab + "@property"
+        yield tab + f"def {name}(self): # {vtype}"
+        yield tab2 + f"return self.obj.{prop}"
+
+        yield ""
+
+        yield tab + f"@{name}.setter"
+        yield tab + f"def {name}(self, value): # {vtype}"
+        yield tab2 + f"self.obj.{prop} = value"
+
+        yield ""
+
+    yield ""
+
+    return
+
 
 # *****************************************************************************************************************************
 # Wrap a collection of wrapped types
@@ -288,6 +431,10 @@ def gen_wrapper(props, class_name, root_class = "Wrapper", with_arrayOf = True):
 
     for line in gen_arrayable_props(props):
         yield line
+        
+    if class_name == 'WObject':
+        for line in gen_shortcuts(wmaps.WObject_shortcuts):
+            yield line
 
     # Otherwize wrap the properties
 
@@ -313,7 +460,7 @@ def gen_blender_wrapping():
     yield ""
     yield "import numpy as np"
     #yield "from wa_root import ArrayOf, Wrapper"
-    yield "from wrapanime.root.root import ArrayOf, Wrapper"
+    yield "from wrapanime.root.root import ArrayOf, Wrapper, to_array"
     yield ""
 
 
@@ -353,23 +500,10 @@ def gen_blender_wrapping():
         yield line
 
     # ----- Object
-
+    
     for line in gen_wrapper(wmaps.object_props, "WObject"):
         yield line
+        
+    
 
 
-# *****************************************************************************************************************************
-# Write code in a file
-
-def write_code(path_name):
-    with open(path_name, 'w') as f:
-        for line in gen_blender_wrapping():
-            print(line)
-            f.write(line + "\n")
-
-
-file_path = '/users/alain/desktop/python.py'
-file_path = '/Users/alain/OneDrive/CloudStation/Blender/scripts/modules/wa_blendergen.py'
-file_path = '/Users/alain/OneDrive/CloudStation/Blender/dev/scripts/modules/wrapanime/root/generated_wrappers.py'
-
-write_code(file_path)
