@@ -6,6 +6,8 @@ Created on Sat Jun 20 16:48:27 2020
 @author: alain
 """
 
+import inspect
+
 cython = False
 blanks = 4
     
@@ -15,6 +17,61 @@ tab_3 =  " " * (blanks*3)
 tab__4 =  " " * (blanks*4)
 
 com = tab + "# "
+
+# *****************************************************************************************************************************
+# Source code for bezier arrays
+# Source code is used to generate the final code
+# Can be used for 2D or 3D bezier curve
+# __size is replaced by 2 or 3 at generation time
+
+def get_bpoints(self):
+    points = np.empty((len(self), __size*3), np.float).reshape(len(self), 3, __size)
+    points[:, 0] = self.handle_lefts
+    points[:, 1] = self.cos
+    points[:, 2] = self.handle_rights
+    return points.reshape(len(self), __size*3)
+
+def set_bpoints(self, points):
+    a = np.array(bpoints)
+    if a.size != len(self)*__size*3:
+        raise WrapException(
+                "Set Bezier points error: the length of the points array is incorrect",
+                f"Need: {len(self)} triplets of __size-vectors: {len(self)*__size*3}",
+                f"Received: array {a.shape} of size {a.size}"
+                )
+        
+    np.reshape(a, (len(self), 3, __size))
+    self.handle_lefts  = a[:, 0]
+    self.cos           = a[:, 1]
+    self.handle_rights = a[:, 2]
+    
+
+# *****************************************************************************************************************************
+# Generate source code from an existing source code
+    
+def method_from_function(f, header, hooks={}):
+    
+    source = inspect.getsource(f)
+    for name, value in hooks.items():
+        source = source.replace(name, value)
+        
+    lines = source.split('\n')
+
+    # function header
+    for line in header:
+        yield tab + line
+        
+    # function body
+    for i in range(1, len(lines)):
+        yield tab + lines[i]
+
+def test_method():       
+    for line in method_from_function(get_bpoints, ["@property", "def bpoints3(self):"], {"__size": "3"}):
+        print(line)
+    for line in method_from_function(set_bpoints, ["@property", "def bpoints3(self, bpoints):"], {"__size": "3"}):
+        print(line)
+    
+
 
 # *****************************************************************************************************************************
 
@@ -48,9 +105,6 @@ def type_size(vtype):
         return 4
     else:
         return 1
-    
-    
-    
 
 
 # *****************************************************************************************************************************
@@ -71,6 +125,10 @@ class PropWrapper():
         
     def is_vectorizable(self):
         return self.vtype in self.vectorizable
+    
+    @property
+    def is_vector(self):
+        return self.vtype in ['V2', 'V3', 'V4']
     
     @property
     def type_size(self):
@@ -138,8 +196,13 @@ class PropWrapper():
         if not self.readonly:
             yield tab + f"@{self.name}.setter"
             yield tab + f"def {self.name}(self, value): # {self.vtype}"
-            yield tab2 + f"self.obj.{self.prop} = value"
+            if self.is_vector:
+                msg = f'"{self.name}"'
+                yield tab2 + f"self.obj.{self.prop} = to_array(value, ({self.type_size},), {msg})"
+            else:
+                yield tab2 + f"self.obj.{self.prop} = value"
             yield ""
+            
             if (self.shortcut is not None) and (self.type_size > 1):
                 for i in range(self.type_size):
                     name = self.shortcut + 'xyzw'[i]
@@ -165,6 +228,8 @@ class PropWrapper():
         if not self.is_vectorizable():
             return
         
+        # Read the plural property, eg cos for vectoriazed access to co
+        
         yield tab + "@property"
         yield tab + f"def {self.get_plural_name}(self): # Array of {self.vtype}"
         yield tab2 + f"if self.{self.get_cache_name} is None:"
@@ -184,48 +249,49 @@ class PropWrapper():
         yield tab2 + f"return self.{self.get_cache_name}"
         yield ""
         
-        if self.readonly:
-            return
+        # Write the plural property if not readonly
         
-        yield tab + f"@{self.get_plural_name}.setter"
-        yield tab + f"def {self.get_plural_name}(self, values): # Arrayf of {self.vtype}"
-        error = f"f'{self.type_size}-vector or array of " + "{len(self)}" + f" {self.type_size}-vectors'"
-        yield tab2 + f"self.{self.get_cache_name} = to_array(values, (len(self), {self.type_size}), {error})"
+        if not self.readonly:
         
-        if self.foreach:
-            yield tab2 + f"self.coll.foreach_set('{self.prop}', self.{self.get_cache_name}{self.reshape_1dim})"
-        else:
-            yield tab2 + "for i in range(len(self)):"
-            yield tab_3 + f"self[i].{self.name} = self.{self.get_cache_name}[i]"
+            yield tab + f"@{self.get_plural_name}.setter"
+            yield tab + f"def {self.get_plural_name}(self, values): # Arrayf of {self.vtype}"
+            error = f"f'{self.type_size}-vector or array of " + "{len(self)}" + f" {self.type_size}-vectors'"
+            yield tab2 + f"self.{self.get_cache_name} = to_array(values, (len(self), {self.type_size}), {error})"
             
-        yield ""
+            if self.foreach:
+                yield tab2 + f"self.coll.foreach_set('{self.prop}', self.{self.get_cache_name}{self.reshape_1dim})"
+            else:
+                yield tab2 + "for i in range(len(self)):"
+                yield tab_3 + f"self[i].{self.name} = self.{self.get_cache_name}[i]"
+                
+            yield ""
             
         # ---------------------------------------------------------------------------
         # Shortcuts to partial access to vector values
     
-        if (not self.is_vectorizable()) or (self.shortcut is None) or (self.type_size < 2):
-            return
+        if self.is_vectorizable() and (self.shortcut is not None) and (self.type_size >= 2):
         
-        yield com + f"xyzw access to {self.get_plural_name}"
-        yield ""
-        
-        def code(index):
-            name = self.shortcut + "xyzw"[index] + 's'
-            yield tab + "@property"
-            yield tab + f"def {name}(self): "
-            yield tab2 + f"return self.{self.get_plural_name}[:, {index}]"
+            yield com + f"xyzw access to {self.get_plural_name}"
             yield ""
-            if not self.readonly:
-                yield tab + f"@{name}.setter"
-                yield tab + f"def {name}(self, values):"
-                error = "f'value or array of " + "{len(self)}" + " values'"
-                yield tab2 + f"self.{self.get_plural_name}[:, {index}] = to_array(values, (len(self), 1), {error})"
-                yield tab2 + f"self.{self.get_plural_name} = self.{self.get_cache_name}"
+            
+            def code(index):
+                name = self.shortcut + "xyzw"[index] + 's'
+                yield tab + "@property"
+                yield tab + f"def {name}(self): "
+                yield tab2 + f"return self.{self.get_plural_name}[:, {index}]"
                 yield ""
-                
-        for index in range(self.type_size):
-            for line in code(index):
-                yield line
+                if not self.readonly:
+                    yield tab + f"@{name}.setter"
+                    yield tab + f"def {name}(self, values):"
+                    error = "f'value or array of " + "{len(self)}" + " values'"
+                    yield tab2 + f"self.{self.get_plural_name}[:, {index}] = to_array(values, (len(self), 1), {error})"
+                    yield tab2 + f"self.{self.get_plural_name} = self.{self.get_cache_name}"
+                    yield ""
+                    
+            for index in range(self.type_size):
+                for line in code(index):
+                    yield line
+                    
                 
 # *****************************************************************************************************************************
 # Methods wrapper
@@ -291,10 +357,13 @@ class MethodWrapper():
 # Object wrapper generator
                 
 class WrapperGenerator():
-    def __init__(self, class_name, gen_coll = True, wrapper_root_class="Wrapper"):
-        self.class_name = class_name
-        self.gen_coll   = gen_coll
+    def __init__(self, class_name, gen_coll = True, wrapper_root_class="Wrapper", coll_root_class = None):
+        self.class_name         = class_name
+        self.gen_coll           = gen_coll
         self.wrapper_root_class = wrapper_root_class
+        self.coll_root_class    = coll_root_class
+        
+        self.bpoints            = None  # Do not generate bpoints properties
         
     # Iterator on PropWrapper to be overriden in sub classes
     def props(self):
@@ -327,7 +396,7 @@ class WrapperGenerator():
             for line in self.collprops_code():
                 if go:
                     yield tab + "def __init__(self, obj, wowner):"
-                    yield tab2 + "super().__init__(self, obj, wowner)"
+                    yield tab2 + "super().__init__(obj, wowner)"
                     go = False
                 yield line
             yield ""
@@ -347,7 +416,9 @@ class WrapperGenerator():
     
     def arrayof_code(self):
         cname = get_plural(self.class_name)
-        super_name = "CollWrapper" if self.gen_coll else "ArrayOf"
+        super_name = self.coll_root_class
+        if super_name is None:
+            super_name = "CollWrapper" if self.gen_coll else "ArrayOf"
         yield "#" + "="*80
         yield f"# Array of W{cname}"
         yield ""
@@ -390,6 +461,27 @@ class WrapperGenerator():
                     yield line
         except:
             pass
+        
+        # === Bezier points setter and getter
+        
+        if self.bpoints is not None:
+            
+            # method name is used in the formatting string only
+            meth_name = f"bpoints"
+            
+            for line in method_from_function(
+                    get_bpoints,
+                    ["@property", f"def {meth_name}(self):"],
+                    {"__size": f"{self.bpoints}"}):
+                yield line
+                
+            for line in method_from_function(
+                    set_bpoints,
+                    [f"@{meth_name}.setter", f"def {meth_name}(self, bpoints):"],
+                    {"__size": f"{self.bpoints}"}):
+                yield line
+                    
+        
                 
         
 # *****************************************************************************************************************************
@@ -407,7 +499,7 @@ class MeshVertexGenerator(WrapperGenerator):
         yield PropWrapper(name='co',            vtype='V3',    prop=None, readonly=False, shortcut='',   foreach=True)
         yield PropWrapper(name='hide',          vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
         yield PropWrapper(name='index',         vtype='int',   prop=None, readonly=True,  shortcut=None, foreach=True)
-        yield PropWrapper(name='normal',        vtype='V3',    prop=None, readonly=True,  shortcut='',   foreach=True)
+        yield PropWrapper(name='normal',        vtype='V3',    prop=None, readonly=True,  shortcut='n',  foreach=True)
         yield PropWrapper(name='undeformed_co', vtype='V3',    prop=None, readonly=True,  shortcut=None, foreach=True)
 
 # =============================================================================================================================
@@ -489,9 +581,10 @@ class MeshGenerator(WrapperGenerator):
 # =============================================================================================================================
 # BezierSplinePoint
 
-class SplineBezierPointGenerator(WrapperGenerator):
+class BezierSplinePointGenerator(WrapperGenerator):
     def __init__(self):
-        super().__init__("SplineBezierPoint")
+        super().__init__("BezierSplinePoint")
+        self.bpoints = 3
         
     def props(self):
         yield PropWrapper(name='co',                vtype='V3',    prop=None, readonly=False, shortcut='',   foreach=True)
@@ -513,7 +606,7 @@ class SplinePointGenerator(WrapperGenerator):
         super().__init__("SplinePoint")
         
     def props(self):
-        yield PropWrapper(name='co',              vtype='V3',    prop=None, readonly=False, shortcut='',   foreach=True)
+        yield PropWrapper(name='co',              vtype='V4',    prop=None, readonly=False, shortcut='',   foreach=True)
         yield PropWrapper(name='radius',          vtype='float', prop=None, readonly=False, shortcut=None, foreach=True)
         yield PropWrapper(name='tilt',            vtype='float', prop=None, readonly=False, shortcut=None, foreach=True)
         yield PropWrapper(name='weight_softbody', vtype='float', prop=None, readonly=False, shortcut=None, foreach=True)
@@ -525,11 +618,11 @@ class SplinePointGenerator(WrapperGenerator):
         
 class SplineGenerator(WrapperGenerator):
     def __init__(self):
-        super().__init__("Spline")
+        super().__init__("Spline", wrapper_root_class="WSplineRoot", coll_root_class="WSplinesRoot")
         
     def collprops_code(self):
         yield tab2 + "self.wbezier_points = WBezierSplinePoints(self.obj.bezier_points, self)"
-        yield tab2 + "self.wpoints        = WBezierSplinePoints(self.obj.points, self)"
+        yield tab2 + "self.wpoints        = WSplinePoints(self.obj.points, self)"
         
     def props(self):
         yield PropWrapper(name='character_index',      vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
@@ -588,12 +681,6 @@ class CurveGenerator(WrapperGenerator):
         yield PropWrapper(name='use_radius',            vtype='bool',   prop=None, readonly=False, shortcut=None, foreach=True)
         yield PropWrapper(name='use_stretch',           vtype='bool',   prop=None, readonly=False, shortcut=None, foreach=True)
 
-        
-
-def temp(props):
-    for key, val in props.items():
-        print(f"yield PropWrapper(name='{key}', vtype='{val}', prop=None, readonly=False, shortcut=None, foreach=True)")
-        
 
 # *****************************************************************************************************************************
 # Object
@@ -628,7 +715,7 @@ class ObjectGenerator(WrapperGenerator):
         yield PropWrapper(name='rotation_euler',                     vtype='V3',    prop=None, readonly=False, shortcut='r',  foreach=False)
         yield PropWrapper(name='rotation_mode',                      vtype='str',   prop=None, readonly=False, shortcut=None, foreach=False)
         yield PropWrapper(name='rotation_quaternion',                vtype='V4',    prop=None, readonly=False, shortcut=None, foreach=False)
-        yield PropWrapper(name='scale',                              vtype='V3',    prop=None, readonly=False, shortcut='sc', foreach=False)
+        yield PropWrapper(name='scale',                              vtype='V3',    prop=None, readonly=False, shortcut='s',  foreach=False)
         yield PropWrapper(name='show_all_edges',                     vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
         yield PropWrapper(name='show_axis',                          vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
         yield PropWrapper(name='show_bounds',                        vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
@@ -662,14 +749,34 @@ class ObjectGenerator(WrapperGenerator):
         yield MethodWrapper("distances", {"location": "V3"}, "float", "distance")
         
 
-
 # *****************************************************************************************************************************
-# Object methods to vectorize
+# Keyframe
+        
+class KeyFrameGenerator(WrapperGenerator):
+    def __init__(self):
+        super().__init__("KeyFrame")
+        self.bpoints = 2
+        
+    def props(self):
+        yield PropWrapper(name='amplitude',           vtype='float', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='back',                vtype='float', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='co',                  vtype='V2',    prop=None, readonly=False, shortcut='',   foreach=True)
+        yield PropWrapper(name='easing',              vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='handle_left',         vtype='V2',    prop=None, readonly=False, shortcut='l',  foreach=True)
+        yield PropWrapper(name='handle_left_type',    vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='handle_right' ,       vtype='V2',    prop=None, readonly=False, shortcut='r',  foreach=True)
+        yield PropWrapper(name='handle_right_type',   vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='interpolation',       vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='period',              vtype='float', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='select_control_point',vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='select_left_handle',  vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='select_right_handle', vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        
 
-WObject_meths = {
-    'track_to'  : ({'location': 'V3'}, None),
-    'orient'    : ({'axis':     'V3'}, None),
-    'distance'  : ({'location': 'V3'}, 'float'),
-}
 
-#temp(object_props)
+
+
+
+
+
+

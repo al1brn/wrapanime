@@ -1,15 +1,24 @@
+from wrapanime.utils.errors import WrapException
+
+
+import wrapanime.wrappers.wrappers as wrappers
+import wrapanime.utils.blender as blend
+
+import importlib
+importlib.reload(wrappers)
+importlib.reload(blend)
+
+from wrapanime.wrappers.wrappers import WObjects
+
 import bpy
 
-from wrapanime.wrappers.wrappers import WObject, ArrayOfWObject
-from wrapanime.utils.errors import WrapException
-import wrapanime.utils.blender as blend
 
 # *****************************************************************************************************************************
 # *****************************************************************************************************************************
 # Gère une collection de copies d'un modèle
 # Si le modèle n'existe pas, crée un mesh vide
 
-class Duplicator(ArrayOfWObject):
+class Duplicator(WObjects):
 
     DUPLIS = {}
 

@@ -14,6 +14,7 @@ import bpy
 from mathutils import Vector, Quaternion
 
 from wrapanime.utils import geometry as geo
+from wrapanime.functions.bezier import BezierCurve
 
 import wrapanime.cython.arrays as arrays
 from wrapanime.utils.errors import WrapShapeException, WrapException
@@ -125,13 +126,13 @@ def vectorize(values, shape, caller="unknown"):
 
 class ArrayOf():
 
-    def __init__(self, wowner, Cls):
+    def __init__(self, wowner, cls):
         self.wowner = wowner
-        self.Cls    = Cls
+        self.cls    = cls
         self._array = np.empty(0, 'object')
 
     def wrap(self, obj):
-        return self.Cls.Wrap(obj, None)
+        return self.cls.Wrap(obj, None)
 
     @property
     def array(self):
@@ -196,22 +197,50 @@ class ArrayOf():
 
 class Wrapper():
 
-    def __init__(self, obj, wowner):
+    def __init__(self, obj, wowner=None):
         self.obj    = obj
         self.wowner = wowner
+        
+    def __repr__(self):
+        if hasattr(self.obj, 'name'):
+            name = self.obj.name
+        else:
+            name = f"{self.obj}"
+            
+        return f"Wrapper[{name} type:{type(self.obj).__name__}]"
+        
 
     @classmethod
-    def Wrap(Cls, obj, wowner):
+    def Wrap(cls, obj, wowner=None):
         if issubclass(type(obj), Wrapper):
             return obj
         else:
-            return Cls(obj, wowner)
-
+            return cls(obj, wowner)
+        
     # Cached properties are created dynamically
     # The names of the caches which can be erased are in class list
 
     def erase_cache(self):
         pass
+    
+    # Shortcut for keyframes
+    def kf_set(self, name, value, frame, index=-1):
+        curr = getattr(self.obj, name)
+        setattr(self.obj, name, value)
+        self.obj.keyframe_insert(name, index=index, frame=frame)
+        setattr(self.obj, name, curr)
+        
+    def kf_anime(self, name, value0, frame0, value1, frame1, interpolation='LINEAR', index=-1):
+        curr = getattr(self.obj, name)
+        
+        setattr(self.obj, name, value0)
+        self.obj.keyframe_insert(name, index=index, frame=frame0)
+        
+        setattr(self.obj, name, value1)
+        self.obj.keyframe_insert(name, index=index, frame=frame1)
+        
+        setattr(self.obj, name, curr)
+    
     
 # *****************************************************************************************************************************
 # Collection wrapper
@@ -219,16 +248,16 @@ class Wrapper():
 
 class CollWrapper():
 
-    def __init__(self, coll, wowner, Cls):
+    def __init__(self, coll, wowner, cls):
         self.coll   = coll
         self.wowner = wowner
-        self.Cls    = Cls
+        self.cls    = cls
         
     def __len__(self):
         return len(self.coll)
     
     def __getitem__(self, index):
-        return self.Cls(self.coll[index])
+        return self.cls(self.coll[index], self)
 
     # loop
     def for_each(self, f, **kwargs):
@@ -241,8 +270,8 @@ class CollWrapper():
             
 class WObjectRoot(Wrapper):
 
-    def __init__(self, obj):
-        super().__init__(WObjectRoot.get_object(obj), None)
+    def __init__(self, obj, wowner=None):
+        super().__init__(WObjectRoot.get_object(obj), wowner)
         self._eval_object = None
         self._averts      = None
 
@@ -319,5 +348,167 @@ class WObjectRoot(Wrapper):
     # Distance
 
     def distance(self, location):
-        return (Vector(location)-self.location).length            
+        return (Vector(location)-self.location).length       
+
+
+# =============================================================================================================================
+# Spline
+        
+class WSplineRoot(Wrapper):
+    
+    @property
+    def bezier_count(self):
+        return len(self.obj.bezier_points)
+
+    @property
+    def points_count(self):
+        return len(self.obj.points)
+        
+    # ---------------------------------------------------------------------------
+    # Bezier points
+    
+    @property
+    def bpoints(self):
+        bp = self.obj.bezier_points
+        count  = len(bp)
+        
+        bpoints = np.full((count, 9), 99., np.float)
+        vx = np.empty(count*3, np.float)
+        
+        bp.foreach_get('co',           vx)
+        bpoints[:, 3:6] = vx.reshape(count, 3)
+        bp.foreach_get('handle_left',  vx)
+        bpoints[:, 0:3] = vx.reshape(count, 3)
+        bp.foreach_get('handle_right', vx)
+        bpoints[:, 6:9] = vx.reshape(count, 3)
+
+        return bpoints
+    
+    @bpoints.setter
+    def bpoints(self, bpoints):
+        
+        bpoints = bpoints.reshape(np.array(bpoints).size//9, 9)
+        count   = len(bpoints)
+        
+        bp = self.obj.bezier_points
+        
+        if len(bp) > count:
+            raise WrapException(
+                "WSpline set Bezier points error: the number of control points don't match",
+                f"WSpline required bezier points: {len(bp)}",
+                f"Number of given points:         {count}"
+                )
+            
+        bp.add(count-len(bp))
+        
+        bp.foreach_set('co',           bpoints[:, 3:6].reshape(count*3))
+        bp.foreach_set('handle_left',  bpoints[:, 0:3].reshape(count*3))
+        bp.foreach_set('handle_right', bpoints[:, 6:9].reshape(count*3))
+        
+    # ---------------------------------------------------------------------------
+    # Spline points
+    
+    @property
+    def spoints(self):
+        return self.wpoints.cos
+    
+    @spoints.setter
+    def spoints(self, points):
+        points = np.array(points)
+        count = points.size // 4
+        points = points.reshape(points.size)
+        
+        if len(self.obj.points) > count:
+            raise WrapException(
+                "WSpline set points error: the number of control points don't match",
+                f"WSpline required points: {len(self.obj.points)}",
+                f"Number of given points:  {count}"
+                )
+        
+        self.obj.points.add(count - len(self.obj.points))
+        self.wpoints.cos = points
+        
+    # ---------------------------------------------------------------------------
+    # Bezier curve
+        
+    @property
+    def bezier_curve(self):
+        return BezierCurve(self.bpoints, 0., 1.)
+    
+    @bezier_curve.setter
+    def bezier_curve(self, bezier_curve):
+        self.bpoints = bezier_curve.bpoints
+        
+    # ---------------------------------------------------------------------------
+    # By function
+    
+    def set_function(self, f, t0, t1, count=20):
+        if self.type == 'BEZIER':
+            self.bezier_curve = BezierCurve.FromFunction(f, t0, t1, count=count)
+        else:
+            dt = (t1-t0)/(count-1)
+            a = np.array([f(t0 + i*dt) for i in range(count)])
+            self.spoints = np.insert(a, 3, 1, axis=1)
+            
+    def update_function(self, f, t0, t1):
+        if self.type == 'BEZIER':
+            self.bezier_curve = BezierCurve.FromFunction(f, t0, t1, count=self.bezier_count)
+        else:
+            dt = (t1-t0)/(self.points_count-1)
+            a = np.array([f(t0 + i*dt) for i in range(self.points_count)])
+            self.spoints = np.insert(a, 3, 1, axis=1)
+        
+        
+# =============================================================================================================================
+# Splines
+        
+class WSplinesRoot(CollWrapper):
+    
+    def clear(self):
+        self.coll.clear()
+        
+    def new(self, type='BEZIER'):
+        return self.cls(self.coll.new(type), self)
+    
+    def get_bpoints(self, index):
+        return self[index].bpoints
+
+    def set_bpoints(self, index, bpoints):
+        self[index].bpoints = bpoints
+    
+    def get_points(self, index):
+        return self[index].points
+
+    def set_points(self, index, points):
+        self[index].points = points
+    
+    def get_bezier_curve(self, index):
+        return self[index].bezier_curve
+    
+    def set_bezier_curve(self, index, bezier_curve):
+        self[index].set_bezier_curve(bezier_curve)
+        
+    def update_bezier_curve(self, index, bezier_curve):
+        self[index].update_bezier_curve(bezier_curve)
+
+    def add_bezier_curve(self, bezier_curve):
+        wspline = self.new('BEZIER')
+        wspline.bezier_curve = bezier_curve
+        return wspline
+
+    def add_function(self, f, t0, t1, count=20, type='BEZIER'):
+        wspline = self.new(type)
+        wspline.set_function(f, t0, t1, count=count)
+        return wspline
+    
+    def update_function(self, index, f, t0, t1):
+        self[index].update_function(f, t0, t1)
+    
+        
+        
+        
+        
+        
+        
+     
 

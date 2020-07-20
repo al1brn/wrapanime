@@ -381,7 +381,7 @@ def kernel_handler(scene):
 
     # Loops
     for f in update_functions:
-        f(scene)
+        f(time)
 
 
 # Execute once

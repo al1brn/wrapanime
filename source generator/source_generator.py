@@ -19,7 +19,8 @@ def wrappers_file():
     yield "# Generated {}".format(datetime.date.today())
     yield ""
     yield "import numpy as np"
-    yield "from wrapanime.root.root import ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot"
+    yield "from wrapanime.wrappers.root import to_array, ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot, WSplineRoot, WSplinesRoot"
+    yield "from wrapanime.utils.errors import WrapException"
     yield ""
     
     def generate(gen):
@@ -42,7 +43,7 @@ def wrappers_file():
     for line in generate(wmaps.MeshGenerator()):
         yield line
     
-    for line in generate(wmaps.SplineBezierPointGenerator()):
+    for line in generate(wmaps.BezierSplinePointGenerator()):
         yield line
     for line in generate(wmaps.SplinePointGenerator()):
         yield line
@@ -54,6 +55,10 @@ def wrappers_file():
     
     for line in generate(wmaps.ObjectGenerator()):
         yield line
+        
+    for line in generate(wmaps.KeyFrameGenerator()):
+        yield line
+        
     
 # *****************************************************************************************************************************
 # Write code in a file

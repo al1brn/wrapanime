@@ -24,17 +24,20 @@ Created: June 8 2020
 Author: Alain Bernard
 """
 
-import itertools
+#import itertools
 import numpy as np
 
 import bpy
 import bmesh
 
-from mathutils import Matrix, Vector, Quaternion
+from mathutils import Vector, Quaternion
 from math import cos, sin, radians, pi
 
+two_pi  = pi*2
+half_pi = pi/2
+
 from wrapanime.utils.errors import WrapException
-from wrapanime.mesh.topology import Topology
+#from wrapanime.mesh.topology import Topology
 from wrapanime.mesh.surface import Surface
 from wrapanime.utils.vert_array import VertArray
 import wrapanime.utils.blender as wbl
@@ -91,13 +94,17 @@ class MeshBuilder():
 
     def __init__(self, secure=False):
 
-        self.secure = secure
-        self.verts  = VertArray() # The vertices
-        self.faces  = [] # The faces : tuples of vertices
-        self.uvs    = [] # uv mapping. Must be the size of faces
+        self.secure  = secure
+        self.verts   = VertArray() # The vertices
+        self.faces   = [] # The faces : tuples of vertices
+        self.uvs     = [] # uv mapping. Must be the size of faces
+        self.surface = None
 
         if self.secure:
             self.o_faces = [] # Ordered faces
+            
+    def __repr__(self):
+        return f"MeshBuilder[verts: {len(self.verts)}, faces: {len(self.faces)}]\nSurface: {self.surface}"
 
     # =============================================================================
     # Add a new vertex
@@ -261,8 +268,6 @@ class MeshBuilder():
         if self.secure:
             if uvs is not None:
                 if len(fs) != len(uvs):
-                    print()
-                    print()
                     raise WrapException(
                             "Builder.add_faces ERROR> The number of faces must be equal to the number of uvs",
                             f"faces: {len(fs)} --> {fs}",
@@ -310,10 +315,88 @@ class MeshBuilder():
         """
         
         builder = MeshBuilder()
-        builder.add_verts(surface.build(t))
+        builder.add_verts(surface.compute(t))
         builder.add_faces(surface.faces(), surface.uvs())
+        builder.surface = surface
         
         return builder
+    
+    @classmethod
+    def Uv(cls, func, u0=0., u1=1., v0=0., v1=1., x_count=10, y_count=10, x_loop=False, y_loop=False):
+        """Create a uv surface"""
+        return cls.FromSurface(Surface.Uv(func, u0, u1, v0, v1, x_count, y_count, x_loop, y_loop))
+    
+    @classmethod
+    def Cartesian(cls, func, x0=-1., x1=1., y0=-1., y1=1., x_count=10, y_count=10):
+        return cls.FromSurface(Surface.Cartesian(func, x0, x1, y0, y1, x_count, y_count))
+
+    @classmethod
+    def Spheric(cls, func, phi0=half_pi, phi1=-half_pi, theta0=0., theta1=two_pi, x_count=10, y_count=10):
+        return cls.FromSurface(Surface.Spheric(func, phi0, phi1, theta0, theta1, x_count, y_count))
+    
+    @classmethod
+    def Cylindric(cls, func, z0=-1., z1=1., theta0=0., theta1=two_pi, x_count=10, y_count=10):
+        return cls.FromSurface(Surface.Cylindric(func, z0, z1, theta0, theta1, x_count, y_count))
+    
+    @classmethod
+    def Polar(cls, func, rho0=0., rho1=1., theta0=0., theta1=two_pi, x_count=10, y_count=10):
+        return cls.FromSurface(Surface.Polar(func, rho0, rho1, theta0, theta1, x_count, y_count))
+
+    @classmethod
+    def Toric(cls, func, major0=0., major1=two_pi, minor0=0., minor1=two_pi, radius=1., x_count=10, y_count=10):
+        return cls.FromSurface(Surface.Toric(func, major0, major1, minor0, minor1, radius, x_count, y_count))
+    
+    # =============================================================================
+    # Standard shapes
+    # =============================================================================
+    # TBD : cube, icosphere
+    
+    @classmethod
+    def Plane(cls, size=2., x_count=2, y_count=2):
+        return cls.FromSurface(Surface(lambda x, y, t=0: t,
+                x0=-size/2, x1=size/2, y0=-size/2, y1=size/2, 
+                x_count=x_count, y_count=y_count, coords='XYZ'))
+        
+    @classmethod
+    def Cube(cls):
+        return cls.Plane()
+
+    @classmethod
+    def Circle(cls, radius=1., x_count=10, y_count=32):
+        return cls.FromSurface(Surface.Disk(radius, x_count, y_count))
+    
+    @classmethod
+    def Sphere(cls, radius=1., x_count=15, y_count=32):
+        return cls.FromSurface(Surface.Sphere(radius, x_count, y_count))
+
+    @classmethod
+    def IcoSphere(cls, radius=1., x_count=15, y_count=32):
+        return cls.Sphere()
+    
+    @classmethod
+    def Cylinder(cls, radius=1., z0=-1., z1=1., x_count=10, y_count=32):
+        return cls.FromSurface(Surface.Cylinder(radius, z0, z1, x_count, y_count))
+    
+    @classmethod
+    def Cone(cls, radius=1., z0=-1., z1=1., x_count=10, y_count=32):
+        return cls.FromSurface(Surface(radius, z0, z1, x_count, y_count))
+    
+    @classmethod
+    def Torus(cls, major_radius=1., minor_radius=0.25, x_count=48, y_count=12):
+        return cls.FromSurface(Surface.Torus(major_radius, minor_radius, x_count, y_count))
+    
+    @classmethod
+    def Grid(cls, size=2., x_count=10, y_count=10):
+        return cls.Plane(size, x_count, y_count)
+    
+    # =============================================================================
+    # From function
+    # =============================================================================
+    
+    @classmethod
+    def FromFunction(cls, func, x0, x1, y0, y1, x_count=10, y_count=10, coords='XYZ', x_loop=False, y_loop=False):
+        return cls.FromSurface(Surface(func, x0, x1, y0, y1, x_count, y_count, coords, x_loop, y_loop))
+    
 
     # =============================================================================
     # Initialize from a Blender object
@@ -344,6 +427,17 @@ class MeshBuilder():
         
         return builder
 
+    # =============================================================================
+    # Update the surface computation
+    # =============================================================================
+    
+    def surface_compute(self, surface=None, t=None):
+        if surface is None:
+            surface = self.surface
+        if surface is None:
+            raise WrapException("MeshBuilder surface computation error: the Surface attribute is None. You must initialize it.")
+            
+        self.verts.array = surface.compute(t=t)
 
     # =============================================================================
     # Merge
@@ -453,13 +547,7 @@ class MeshBuilder():
 
             # Rapid if uv are specified for all faces
             if none_uvs == 0:
-                print('-'*100)
-                print()
-                print("length self.uvs:", len(self.uvs))
-                print()
                 uvs = [uv_co for uv in self.uvs for uv_co in uv]
-                print("length uvs:", len(uvs))
-                print()
                 
                 for i, uv in enumerate(uv_layer.data):
                     uv.uv = uvs[i]
@@ -532,7 +620,7 @@ class MeshBuilder():
     # Create the object
     # =============================================================================
 
-    def create_object(self, name="Special", remove_doubles=None):
+    def create_object(self, name="Special", update_if_exist=True, remove_doubles=None):
         """Create the blender object.
 
         Parameters
@@ -547,6 +635,13 @@ class MeshBuilder():
         Object
             The created Blender object
         """
+        
+        # Update if exist and authorized
+        if update_if_exist:
+            obj = wbl.get_object(name, mandatory=False)
+            if obj is not None:
+                self.update_object(obj)
+                return obj
 
         # Create the mesh
         mesh = bpy.data.meshes.new(name=name)
@@ -648,7 +743,7 @@ class MeshBuilder():
         self.check_vertices_length(len(obj.data.vertices), caller=f"to_shapekey('{obj.name}')")
         
         # Shapekey
-        sk = wbl.get_sk(obj, name, step)
+        sk = wbl.get_sk(obj, name=name, step=step)
         
         # Go
         #verts = np.array(self.verts).reshape(len(self.verts)*3)
@@ -825,8 +920,7 @@ class MeshBuilder():
         
         npt = np.array(translation)
         if npt.size == 3:
-            size = self.verts._array.size
-            self.verts._array = np.add(self.verts._array.reshape(size//3, 3), npt).reshape(size)
+            self.verts._array += npt
         else:
             raise WrapException("MeshBuilder translation error: impossible to translate with vector of size {nps.size}", translation)
 
@@ -849,8 +943,7 @@ class MeshBuilder():
         
         # Need inverted matrix for np.matmul 
         Mi = q.to_matrix().inverted()
-        size = self.verts._array.size
-        self.verts._array = np.matmul(self.verts._array.reshape(size//3, 3), Mi).reshape(size)
+        self.verts._array = np.matmul(self.verts._array, Mi)
 
     # =============================================================================
     # scale
@@ -866,11 +959,8 @@ class MeshBuilder():
         """
         
         nps = np.array(value)
-        if nps.size == 1:
-            self.verts._array *= value
-        elif nps.size == 3:
-            size = self.verts._array.size
-            self.verts._array = np.multiply(self.verts._array.reshape(size//3, 3), nps).reshape(size)
+        if (nps.size == 1) or (nps.size == 3):
+            self.verts._array = np.multiply(self.verts._array, nps)
         else:
             raise WrapException("MeshBuilder scale error: impossible to scale with vector of size {nps.size}", value)
 
@@ -957,9 +1047,15 @@ class MeshBuilder():
 
         if self.secure:
             if len(verts0) != len(verts1):
-                print("verts0", verts0)
-                print("verts1", verts1)
-                raise NameError("Builder.link_with_faces ERROR> The two sequences to link must be the same length")
+                raise WrapException(
+                        "Builder.link_with_faces ERROR> The two sequences to link must be the same length",
+                        f"verts0: {len(verts0)}",
+                        f"verts1: {len(verts1)}",
+                        "Verts0 -----",
+                        f"{verts0}",
+                        "Verts0 -----",
+                        f"{verts1}"
+                        )
 
         # ---------------------------------------------------------------------------
         # u locations

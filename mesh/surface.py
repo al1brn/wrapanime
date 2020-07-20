@@ -23,17 +23,10 @@ import itertools
 from math import sin, cos, pi, degrees
 import numpy as np
 
-"""
-import sys
-sys.path.append("..")
 
-from utils.errors import WrapException
+from wrapanime.utils import errors
+WrapException = errors.WrapException
 
-"""
-
-from wrapanime.utils.errors import WrapException
-
-#"""
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Coordinate system transformation
@@ -61,6 +54,41 @@ def tor_xyz(theta_major, theta_minor, rho, radius=1.):
     W = M.dot(V)
     
     return W + radius*np.array([c, s, 0.])
+
+# -----------------------------------------------------------------------------------------------------------------------------
+# Coordinate system transformation - vector version
+
+def vxyz_xyz(xys, z):
+    return np.insert(xys, 2, z, axis=1)
+        
+def vsph_xyz(phithetas, rho):
+    rcphi = rho*np.cos(phithetas[:, 0])
+    return np.stack((
+        rcphi * np.cos(phithetas[:, 1]),
+        rcphi * np.sin(phithetas[:, 1]),
+        rho   * np.sin(phithetas[:, 0])
+        )).transpose()
+
+def vcyl_xyz(zthetas, rho):
+    return np.stack((
+        rho * np.cos(zthetas[:, 1]),
+        rho * np.sin(zthetas[:, 1]),
+        zthetas[:, 0]
+        )).transpose()
+
+def vpol_xyz(rhothetas, z):
+    return np.stack((
+        rhothetas[:, 0] * np.cos(rhothetas[:, 1]),
+        rhothetas[:, 0] * np.sin(rhothetas[:, 1]),
+        z
+        )).transpose()
+
+def vtor_xyz(thetas, rho, radius=1.):
+    # Later on !
+    r = np.empty((len(rho), 3), np.float)
+    for i, (tmaj, tmin) in zip(itertools.count(), thetas):
+        r[i] = tor_xyz(tmaj, tmin, rho, radius)
+    return r
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # A general surface iterator
@@ -110,23 +138,23 @@ def surface_iterator(x0, x1, y0, y1, x_count=10, y_count=10, x_loop=False, y_loo
 # -----------------------------------------------------------------------------------------------------------------------------
 # Sphere iterator 
     
-pis2 = pi/2.
-twpi = 2*pi
+half_pi = pi/2
+two_pi  = 2*pi
     
 def sph_iterator(x_count=17, y_count=32):
-    return surface_iterator(pis2, -pis2, 0., twpi, x_count=x_count, y_count=y_count, x_loop=False, y_loop=True)
+    return surface_iterator(half_pi, -half_pi, 0., two_pi, x_count=x_count, y_count=y_count, x_loop=False, y_loop=True)
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Cylinder iterator 
 
 def cyl_iterator(z0, z1, x_count=10, y_count=32):
-    return surface_iterator(z0, z1, 0., twpi, x_count=x_count, y_count=y_count, x_loop=False, y_loop=True)
+    return surface_iterator(z0, z1, 0., two_pi, x_count=x_count, y_count=y_count, x_loop=False, y_loop=True)
     
 # -----------------------------------------------------------------------------------------------------------------------------
 # Torus iterator
 
 def tor_iterator(x_count=48, y_count=12):
-    return surface_iterator(0., twpi, 0., twpi, x_count=x_count, y_count=y_count, x_loop=True, y_loop=True)
+    return surface_iterator(0., two_pi, 0., two_pi, x_count=x_count, y_count=y_count, x_loop=True, y_loop=True)
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Calc an uv surface
@@ -428,37 +456,98 @@ class Surface():
         self.y_loop  = y_loop
         self.poles   = []       # Rings indices which are contracted into a pole
         
-        if coords == 'XYZ':
-            self.to_xyz = xyz_xyz
-        elif coords == 'SPH':
-            self.to_xyz = sph_xyz
-        elif coords == 'CYL':
-            self.to_xyz = cyl_xyz
-        elif coords == 'POL':
-            self.to_xyz = pol_xyz
+        self.xys     = np.array([[x, y] for x, y in self.iterator()])
+        self.radius  = 1. # For Toric coordinates
+        
+        # Does the function returns a float or a vector
+        
+        self.res_len = np.array(func(x0, y0)).size
+        if not self.res_len in [1, 3]:
+            raise WrapException("Surface initialization error; the function must return a float or a vector",
+                    f"The function {func.__name__} returns {func(x0, y0)} of length {self.res_len}"
+                    )
+            
+        # Can the function work directly on arrays
+        self.npcall = True
+        try:
+            func(np.array([x0, x1]), np.array([x0, x1]))
+            self.vfunc  = func
+        except:
+            self.npcall = False
+            self.vfunc  = np.vectorize(self.func)
+            
+        self.xys = np.array([[x, y] for x, y in self.iterator()])
+        
+        if False:
+            if coords == 'XYZ':
+                self.to_xyz = xyz_xyz
+            elif coords == 'SPH':
+                self.to_xyz = sph_xyz
+            elif coords == 'CYL':
+                self.to_xyz = cyl_xyz
+            elif coords == 'POL':
+                self.to_xyz = pol_xyz
+        else:
+            if coords == 'XYZ':
+                self.to_xyz = vxyz_xyz
+            elif coords == 'SPH':
+                self.to_xyz = vsph_xyz
+            elif coords == 'CYL':
+                self.to_xyz = vcyl_xyz
+            elif coords == 'POL':
+                self.to_xyz = vpol_xyz
+            
 
     # ----------------------------------------------------------------------------------------------------
     # repr
     
     def __repr__(self):
-        s = f"<Surface> {self.x_count} x {self.y_count}"
+        s = f"Surface [{self.x_count}x{self.y_count}, coords: {self.coords}, size: {self.ret_size}, numpy: {self.npcall}"
         if len(self.poles) > 0:
             s += f" with {len(self.poles)} pole{'s' if len(self.poles)>1 else ''} {self.poles}"
         s += f" = {self.verts_count} vertices"
         if len(self.poles) > 0:
             s += f" ({self.verts_in_grid} + {len(self.poles)})"
-        s += f"\nCoordinates: {self.coords} on [{self.x0:.2f}, {self.x1:.2f}, {self.y0:.2f}, {self.y1:.2f}]"
-        s += f"\nx_loop: {self.x_loop}, y_loop: {self.y_loop}"
+        
+        #s += f"\nCoordinates: {self.coords} on [{self.x0:.2f}, {self.x1:.2f}, {self.y0:.2f}, {self.y1:.2f}]"
+        #s += f"\nx_loop: {self.x_loop}, y_loop: {self.y_loop}"
         
         return s
-            
+    
     # ----------------------------------------------------------------------------------------------------
-    # Builders
-        
+    # Builder
+    
     @classmethod
     def Uv(cls, func, u0=0., u1=1., v0=0., v1=1., x_count=10, y_count=10, x_loop=False, y_loop=False):
         """Create a uv surface"""
         return Surface(func, u0, u1, v0, v1, x_count, y_count, 'UV', x_loop, y_loop)
+    
+    @classmethod
+    def Cartesian(cls, func, x0=-1., x1=1., y0=-1., y1=1., x_count=10, y_count=10):
+        return cls(func, x0, x1, y0, y1, x_count, y_count, coords='XYZ')
+
+    @classmethod
+    def Spheric(cls, func, phi0=half_pi, phi1=-half_pi, theta0=0., theta1=two_pi, x_count=10, y_count=10):
+        y_loop = abs(theta1-theta0-two_pi) < 0.0001
+        return cls(func, phi0, phi1, theta0, theta1, x_count, y_count, coords='SPH', y_loop=y_loop)
+    
+    @classmethod
+    def Cylindric(cls, func, z0=-1., z1=1., theta0=0., theta1=two_pi, x_count=10, y_count=10):
+        y_loop = abs(theta1-theta0-two_pi) < 0.0001
+        return cls(func, z0, z1, theta0, theta1, x_count, y_count, coords='CYL', y_loop=y_loop)
+    
+    @classmethod
+    def Polar(cls, func, rho0=0., rho1=1., theta0=0., theta1=two_pi, x_count=10, y_count=10):
+        y_loop = abs(theta1-theta0-two_pi) < 0.0001
+        return cls(func, rho0, rho1, theta0, theta1, x_count, y_count, coords='POL', y_loop=y_loop)
+
+    @classmethod
+    def Toric(cls, func, major0=0., major1=two_pi, minor0=0., minor1=two_pi, radius=1., x_count=10, y_count=10):
+        x_loop = abs(major1-major0-two_pi) < 0.0001
+        y_loop = abs(minor1-minor0-two_pi) < 0.0001
+        surf = cls(func, major0, major1, minor0, minor1, x_count, y_count, coords='TOR', x_loop=x_loop, y_loop=y_loop)
+        surf.radius = radius
+        return surf
         
     @classmethod
     def Sphere(cls, radius=1., x_count=15, y_count=32):
@@ -466,28 +555,32 @@ class Surface():
         
         Note that the two poles are put at the end of the grid
         """
-        surf = Surface(lambda x, y, t=radius: t, pis2, -pis2, 0., twpi, x_count, y_count, 'SPH', False, True)
+        #surf = Surface(lambda x, y, t=radius: t, half_pi, -half_pi, 0., two_pi, x_count, y_count, 'SPH', False, True)
+        surf = cls.Spheric(lambda x, y, t=0: radius, x_count=x_count, y_count=y_count)
         surf.poles = [0, x_count-1]
         return surf
     
     @classmethod
     def Cylinder(cls, radius=1., z0=-1., z1=1., x_count=10, y_count=32):
         """Create a cylinder surface"""
-        return Surface(lambda x, y, t=radius: t, z0, z1, 0., twpi, x_count, y_count, 'CYL', False, True)
+        #return Surface(lambda x, y, t=radius: t, z0, z1, 0., two_pi, x_count, y_count, 'CYL', False, True)
+        return Surface.Cylindric(lambda x, y, t=radius: t, z0, z1, x_count=x_count, y_count=y_count)
     
     @classmethod
     def Disk(cls, radius=1., x_count=10, y_count=32):
         """Create a cylinder surface"""
-        surf = Surface(lambda x, y, t=0: t, 0., radius, 0., twpi, x_count, y_count, 'POL', False, True)
+        #surf = Surface(lambda x, y, t=0: t, 0., radius, 0., two_pi, x_count, y_count, 'POL', False, True)
+        surf = Surface.Polar(lambda x, y, t=0: t, rho0=0., rho1=radius, x_count=x_count, y_count=y_count)
         surf.poles = [0]
         return surf
     
     @classmethod
-    def Torus(cls, major_radius=1., minor_radius=0.25, x_count=48, y_count=12):
+    def Torus(cls, radius=1., minor_radius=0.25, x_count=48, y_count=12):
         """Create a torus surface"""
-        surf = Surface(lambda x, y, t=minor_radius: t, 0., twpi, 0., twpi, x_count, y_count, 'TOR', True, True)
-        surf.radius = major_radius
-        return surf
+        #surf = Surface(lambda x, y, t=minor_radius: t, 0., two_pi, 0., two_pi, x_count, y_count, 'TOR', True, True)
+        #surf.radius = major_radius
+        #return surf
+        return Surface.Toric(lambda x, y, t=minor_radius: t, radius=radius, x_count=x_count, y_count=y_count)
     
     # ----------------------------------------------------------------------------------------------------
     # Number of vertices
@@ -546,64 +639,15 @@ class Surface():
         
         return surface_iterator(self.x0, self.x1, self.y0, self.y1, self.x_count, self.y_count, self.x_loop, self.y_loop)
     
+                
     # ----------------------------------------------------------------------------------------------------
-    # Surface computation
-    
-    def compute(self, verts, t=None):
-        """Compute the vertices on a existing array of vertices.
-        
-        The attribute func must be initialized before calling this method
-        
-        Use build method the create the initial array
+    # Compute the vertices
+                
+    def compute(self, t=None):
+        """Compute the vertices.
         
         Parameters
         ----------
-        verts: array of vertices
-            The number of vertices in the array must match the number of computed vertices
-        t: float or None
-            The time parameter. If None, the functions is simply called with f(x, y)
-        """
-        
-        # Error
-        if self.func is None:
-            raise WrapException(
-                    "Surface.compute error: the function surface.func must be initialized with a valid function."
-                    )
-
-        if len(verts) != self.verts_count:
-            raise WrapException(
-                    "Surface.compute error: the vertices array is not of the right size",
-                    f"Computed vertices: {self.x_count} x {self.y_count} + {len(self.poles)} = {self.verts_count}"
-                    f"Vertices array length: {len(verts)}"
-                    )
-
-        # Call the function with the time parameter
-        if t is None:
-            ff = lambda x, y, t: self.func(x, y)
-        else:
-            ff = self.func
-            
-        # Call depending upon the coords system
-        if self.coords == 'UV':
-            for i, (u, v) in zip(itertools.count(), self.iterator()):
-                verts[i] = ff(u, v, t)
-        elif self.coords == 'TOR':
-            for i, (x, y) in zip(itertools.count(), self.iterator()):
-                verts[i] = tor_xyz(x, y, ff(x, y, t), self.radius)
-        else:
-            for i, (x, y) in zip(itertools.count(), self.iterator()):
-                verts[i] = self.to_xyz(x, y, ff(x, y, t))
-                
-    # ----------------------------------------------------------------------------------------------------
-    # Initial build
-                
-    def build(self, f=None, t=None):
-        """Create the vertices.
-        
-        Parameters
-        ----------
-        f: function of template f(x, y[, t])
-            The function must return a vertex if the coords is 'UV' otherwirse a float
         t: float or None
             The time parameter. If None, the functions is simply called with f(x, y)
             
@@ -613,11 +657,20 @@ class Surface():
             The surface vertices
         """
         
-        if f is not None:
-            self.func = f
-        
-        verts = np.empty((self.verts_count, 3), np.float)
-        self.compute(verts, t=t)
+        if t is None:
+            a = self.vfunc(self.xys[:, 0], self.xys[:, 1])
+        else:
+            a = self.vfunc(self.xys[:, 0], self.xys[:, 1], t)
+            
+        # Result is the third coordinate
+        if self.res_len == 1:
+            if self.coords == 'TOR':
+                verts = vtor_xyz(self.xys, a, self.radius)
+            else:
+                verts = self.to_xyz(self.xys, a)
+        else:
+            verts = np.stack((a[0], a[1], a[2])).transpose()
+                
         return verts
     
     # ----------------------------------------------------------------------------------------------------
@@ -735,21 +788,23 @@ class Surface():
     
     
 def test():
-    def f(x, y, t):
-        return t
     
-    #surf = Surface(x_count=9, y_count=4, x_loop=False, y_loop=False)
-    #surf = Surface.Sphere(x_count=5, y_count=4)
-    surf = Surface.Cylinder(x_count=5, y_count=4)
-    #surf = Surface.Torus(x_count=5, y_count=4)
+    def surfaces():
+        yield Surface.Uv(lambda u, v, t=0: (u*2-1, v*2-1, (1+t)*u*u - 2*v*v), x_count=10, y_count=1, x_loop=False, y_loop=False)
+        yield Surface.Sphere(radius = 1, x_count=15, y_count=32)
+        yield Surface.Cylinder(radius=1., z0=-1., z1=1., x_count=10, y_count=32)
+        yield Surface.Disk(radius=1., x_count=10, y_count=32)
+        yield Surface.Torus(major_radius=1., minor_radius=0.25, x_count=48, y_count=12)
+        yield Surface(lambda rho, theta, t=0.: sin(rho), x0=0, x1=6, y0=0, y1=2*pi, x_count=10, y_count=10, coords='POL', x_loop=False, y_loop=True)
+        
+    for surf in surfaces():
+        print("-"*100)
+        print(surf)
+        print(len(surf.faces()))
+        print(len(surf.uvs()))
+        print()
     
-    print("-"*100)
-    print(surf)
-    print(len(surf.faces()))
-    print(len(surf.uvs()))
-    
-
-test()    
+#test()    
     
     
     

@@ -18,122 +18,94 @@ class VertArray():
         self.buffer = max(buffer, self.length//10)
         self.vsize  = vector_size
         self.vtype  = vtype
-        self._array = np.zeros(max(self.buffer, self.length)*self.vsize, vtype)
+        self._array = np.zeros((max(self.buffer, self.length), self.vsize), vtype)
         
     def __repr__(self):
-        return f"Vertices: {self.length}\n" + self.array.__repr__()
+        return f"VertArray[verts: {self.length} of size {self.vsize}] array size={self._array.size} shape={self.array.shape}]\n{self.array}"
+    
+    # Array implementation
         
     def __len__(self):
         return self.length
     
     def __getitem__(self, index):
-        if index < 0 or index >= self.length:
-            raise WrapException(
-                    "Vertices array index error",
-                    f"Array length is {self.length}, requested index is {index}"
-                    )
-        ix = self.vsize * index
-        return self._array[ix:ix+3]
+        return self._array[index]
     
     def __setitem__(self, index, V):
-        if index < 0 or index >= self.length:
-            raise WrapException(
-                    "Vertices array index error",
-                    f"Array length is {self.length}, requested index is {index}"
-                    )
-        ix = self.vsize * index
-        self._array[ix:ix+3] = V
+        self._array[index] = V
         
-    def __array__(self):
-        return self.linear_array
-    
+    # User array
+        
     @property
     def array(self):
-        return self._array[:self.length*self.vsize].reshape((self.length, self.vsize))
+        return self._array[:self.length]
     
-    @property
-    def full_array(self):
-        return self._array.reshape(self.length//self.vsize, self.vsize)
+    @array.setter
+    def array(self, a):
+        a = np.array(a)
+        self.length = a.size // self.vsize
+        self._array = a.reshape(self.length, self.vsize)
     
     @property
     def linear_array(self):
-        return self._array[:self.length*self.vsize]
+        return self.array.reshape(self.length*self.vsize)
         
     def update_buffer(self, target):
-        bcount, rem = divmod(target, self.buffer)
-        if rem > 0:
-            bcount += 1
-        target = bcount*self.buffer
-        a_size = target*self.vsize
-        if a_size > len(self._array):
-            self._array = np.resize(self._array, a_size)
+        if target > len(self._array):
+            target += self.buffer
+            self._array = np.resize(self._array, (target, self.vsize))
             
     def set_length(self, length):
         if length > self.length:
             self.update_buffer(length)
         self.length = length
         
-    def add(self, Vs):
-        vs     = np.array(Vs)
-        vcount = vs.size
-        if vcount % self.vsize != 0:
-            raise WrapException(
-                    "Vertices array error:; impossible to add an array of vectors",
-                    Vs,
-                    f"The size of the array ({vs.size}) must be a multiple of {self.vsize}"
-                    )
-            
-        count = vcount // self.vsize
-            
-        ix = self.length * self.vsize
-        self.set_length(self.length + count)
-        self._array[ix:ix+vcount] = vs.reshape(vcount)
+    def add(self, vs):
+        a = np.array(vs)
+        count = a.size//self.vsize
+        l = self.length
+        
+        self.set_length(l + count)
+        self._array[l:l+count] = a.reshape(count, self.vsize)
         
     @property
-    def x(self):
-        return self.array[:, 0]
+    def xs(self):
+        return self._array[:self.length, 0]
     
     @property
-    def y(self):
-        return self.array[:, 1]
+    def ys(self):
+        return self._array[:self.length, 1]
     
     @property
-    def z(self):
-        return self.array[:, 1]
+    def zs(self):
+        return self._array[:self.length, 2]
     
-    @x.setter
-    def x(self, v):
-        npx = np.array(v)
-        if (npx.size != 1) and (npx.size != self.length):
+    @xs.setter
+    def xs(self, v):
+        a = np.array(v)
+        if (a.size != 1) and (a.size != self.length):
             raise WrapException("Vertices array error: impossible to set x values",
-                                f"There are {len(self)} vertices, impossible to set them with {npx.size} values"
+                                f"There are {len(self)} vertices, impossible to set them with {a.size} values"
                                 )
-            
-        a = self._array.reshape(len(self._array)//self.vsize, self.vsize)
-        a[:self.length, 0] = npx
-        self._array = a.reshape(a.size)
+        self._array[:self.length, 0] = a
         
-    @y.setter
-    def y(self, v):
-        npx = np.array(v)
-        if (npx.size != 1) and (npx.size != self.length):
+    @ys.setter
+    def ys(self, v):
+        a = np.array(v)
+        if (a.size != 1) and (a.size != self.length):
             raise WrapException("Vertices array error: impossible to set y values",
-                                f"There are {len(self)} vertices, impossible to set them with {npx.size} values"
+                                f"There are {len(self)} vertices, impossible to set them with {a.size} values"
                                 )
             
-        a = self._array.reshape(len(self._array)//self.vsize, self.vsize)
-        a[:self.length, 1] = npx
-        self._array = a.reshape(a.size)
+        self._array[:self.length, 1] = a
         
-    @z.setter
-    def z(self, v):
-        npx = np.array(v)
-        if (npx.size != 1) and (npx.size != self.length):
+    @zs.setter
+    def zs(self, v):
+        a = np.array(v)
+        if (a.size != 1) and (a.size != self.length):
             raise WrapException("Vertices array error: impossible to set z values",
-                                f"There are {len(self)} vertices, impossible to set them with {npx.size} values"
+                                f"There are {len(self)} vertices, impossible to set them with {a.size} values"
                                 )
             
-        a = self._array.reshape(len(self._array)//self.vsize, self.vsize)
-        a[:self.length, 2] = npx
-        self._array = a.reshape(a.size)
+        self._array[:self.length, 2] = a
     

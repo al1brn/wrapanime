@@ -218,12 +218,12 @@ def check_bezier_func_points(points):
     """
     
     points = np.array(points)
-    if points.size %6 != 0:
+    if points.size % 6 != 0:
         raise WrapException(
             "Bezier function initialization error",
             f"Control points must be given by triplets. The size of resulting array must be a multiple of 6. {points.size} is not a multiple of 6"
             )
-    points = points.reshape(points.size//6, 3, 2)
+    np.reshape(points, (points.size//6, 3, 2))
     shape = points.shape
     if shape[0] < 2:
         raise WrapException(
@@ -518,12 +518,18 @@ class Mapper(ClipMapper):
     def __init__(self, points, even=True, clamp=True):
 
         points   = check_bezier_func_points(points)
-        in_space = [points[0, 0, 0], points[points.shape[0]-1, 0, 0]]
+        in_space = [points[0, 0, 0], points[-1, 0, 0]]
 
         super().__init__(in_space, clamp)
 
         self.points = points
         self.even   = even
+        
+    def __len__(self):
+        return len(self.points)
+    
+    def __getitem__(self, index):
+        return self.points[index]
 
     def compute(self, x):
         """Compute the value function with the even Bezier function"""
@@ -531,6 +537,12 @@ class Mapper(ClipMapper):
             return even_bezier_func(self.points, self.clip(x))
         else:
             return bezier_func(self.points, self.clip(x))
+        
+    def resize_x(self, x0, x1):
+        scale = (x1-x0)/(self.in_space[1] - self.in_space[0])
+        self.points *= scale
+        self.points += (x0-self.in_space[0])
+        self.in_space = [self.points[0, 0, 0], self.points[-1, 0, 0]]
         
     @classmethod
     def to_3D(self, perp='Y'):

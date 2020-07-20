@@ -77,7 +77,7 @@ def get_sk(obj, name, step=None, create=True):
     
     if obj.data.shape_keys is None:
         if create:
-            obj.shape_key_add(name)
+            obj.shape_key_add(name=name)
             obj.data.shape_keys.use_relative = False
         else:
             return None
@@ -96,7 +96,7 @@ def get_sk(obj, name, step=None, create=True):
             # Ensure the value is correct
             obj.data.shape_keys.eval_time = step*10
         
-        res = obj.shape_key_add(name)
+        res = obj.shape_key_add(name=name)
         
         # Less impact as possible :-)
         obj.data.shape_keys.eval_time = eval_time
@@ -129,12 +129,56 @@ def delete_sk(obj, name=None, step=None):
 
 # *****************************************************************************************************************************
 # *****************************************************************************************************************************
+# Names management
+            
+def get_name_number(name):
+    p = name.find(".") < 0
+    if p:
+        return None
+    return int(name[len(name) - p + 1:])
+
+def set_name_number(name, number):
+    return f"{name}.{number:03d}"
+    
+            
+def get_free_name(name, currents):
+    
+    if currents is None or len(currents) == 0:
+        return name
+    
+    scur = currents.copy()
+    scur.sort()
+    if scur[0] != name:
+        return name
+    
+    scur = scur[1:]
+    
+    for i in range(len(scur)):
+        if get_name_number(scur[i]) > i:
+            return set_name_number(name, i)
+        
+    return set_name_number(name, len(scur))
+    
+
+# *****************************************************************************************************************************
+# *****************************************************************************************************************************
+# Update the view port after objects transformations
+
+def update_viewport():
+    bpy.ops.object.editmode_toggle()    
+    bpy.ops.object.editmode_toggle()    
+
+
+# *****************************************************************************************************************************
+# *****************************************************************************************************************************
 # Utilitaires de gestion des objets
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Get an object by name of object itself
+# The object can also be a WObject
             
 def get_object(obj_or_name, mandatory=True, otype=None):
+    
     if type(obj_or_name) is str:
         obj = bpy.data.objects.get(obj_or_name)
     else:
@@ -142,6 +186,9 @@ def get_object(obj_or_name, mandatory=True, otype=None):
         
     if (obj is None) and mandatory:
         raise WrapException(f"Object '{obj_or_name}' doesn't exist")
+        
+    if hasattr(obj, "obj"):
+        obj = obj.obj
         
     if (obj is not None) and (otype is not None):
         if obj.type != otype:
@@ -260,3 +307,7 @@ def set_material(obj, material_name):
         obj.data.materials.append(mat)
 
     return mat
+
+        
+        
+

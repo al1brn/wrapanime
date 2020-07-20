@@ -17,10 +17,8 @@ from wrapanime.utils import cy_object
 from wrapanime.utils import geometry as geo
 import wrapanime.wrappers.root as root
 
-from wrapanime.wrappers.generated_wrappers import WObject, WMesh
+from wrapanime.wrappers.generated_wrappers import WObject, WMesh, WCurve
 from wrapanime.wrappers import generated_wrappers as wgen
-
-from wrapanime.functions.bezier import BezierCurve
 
 import importlib
 importlib.reload(geo)
@@ -77,52 +75,6 @@ class WMeshObject(WObject):
         self._faces             = None
 
         self._edges             = None
-        
-    # ---------------------------------------------------------------------------
-    # New
-    
-    @classmethod
-    def New(cls, shape='CUBE', name=None, **kwargs):
-        
-        if name is not None:
-            obj = blender.get_object(name, mandatory=False, otype='MESH')
-            if obj is not None:
-                return cls(obj)
-        
-        if shape == 'CIRCLE':
-            bpy.ops.mesh.primitive_circle_add(**kwargs)
-        elif shape == 'CONE':
-            bpy.ops.mesh.primitive_cone_add(**kwargs)
-        elif shape == 'CUBE':
-            bpy.ops.mesh.primitive_cube_add(**kwargs)
-        elif shape == 'CUBE_GIZMO':
-            bpy.ops.mesh.primitive_cube_add_gizmo(**kwargs)
-        elif shape == 'CYLINDER':
-            bpy.ops.mesh.primitive_cylinder_add(**kwargs)
-        elif shape == 'GRID':
-            bpy.ops.mesh.primitive_grid_add(**kwargs)
-        elif shape == 'ICO_SPHERE':
-            bpy.ops.mesh.primitive_ico_sphere_add(**kwargs)
-        elif shape == 'MONKEY':
-            bpy.ops.mesh.primitive_monkey_add(**kwargs)
-        elif shape == 'PLANE':
-            bpy.ops.mesh.primitive_plane_add(**kwargs)
-        elif shape == 'TORUS':
-            bpy.ops.mesh.primitive_torus_add(**kwargs)
-        elif shape == 'UV_SPHERE':
-            bpy.ops.mesh.primitive_uv_sphere_add(**kwargs)
-        else:
-            raise WrapException(
-                f"New mesh object error: the shape '{shape}' is not valid",
-                "Shape must be in [CIRCLE, CONE, CUBE, CYLINDER, GRID, ICO_SPHERE, MONKEY, PLANE, TORUS, UV_SPHERE]"
-                )
-
-        obj = bpy.context.active_object
-        if name is not None:
-            obj.name = name
-
-        return cls(obj)
-        
 
     # ---------------------------------------------------------------------------
     # Mesh ease functions
@@ -195,90 +147,52 @@ class WMeshObject(WObject):
 
 
 # =============================================================================================================================
-# Curve
-        
-class WCurve(wgen.WCurve):
-    @property
-    def t0(self):
-        return self.bevel_factor_start
-    @t0.setter
-    def t0(self, value):
-        self.bevel_factor_start = value
-        
-    @property
-    def t1(self):
-        return self.bevel_factor_end
-    @t1.setter
-    def t1(self, value):
-        self.bevel_factor_end = value
-
-
-# =============================================================================================================================
 # Curve object wrapper
 
 class WCurveObject(WObject):
     def __init__(self, obj):
         obj = WObject.get_object(obj, 'CURVE')
-        super().__init__(obj)
+        self.wcurve = WCurve(self.data)
         
-        self.wcurve   = WCurve(self.obj.data, self)
-        self.wsplines = self.wcurve.wsplines
-        
-    # ---------------------------------------------------------------------------
-    # New Curve object
-    
-    @classmethod
-    def New(cls, shape='BEZIER', name=None, **kwargs):
-        
-        if name is not None:
-            obj = blender.get_object(name, mandatory=False, otype='CURVE')
-            if obj is not None:
-                return cls(obj)
-        
-        if shape == 'CIRCLE':
-            bpy.ops.curve.primitive_bezier_circle_add(**kwargs)
-        elif shape == 'BEZIER':
-            bpy.ops.curve.primitive_bezier_curve_add(**kwargs)
-            
-        elif shape == 'NURBS_CIRCLE':
-            bpy.ops.curve.primitive_nurbs_circle_add(**kwargs)
-        elif shape == 'NURBS_CURVE':
-            bpy.ops.curve.primitive_nurbs_curve_add(**kwargs)
-        elif shape == 'PATH':
-            bpy.ops.curve.primitive_nurbs_path_add(**kwargs)
-        
-        else:
-            raise WrapException(
-                f"New curve object error: the shape '{shape}' is not valid",
-                "Shape must be in [CIRCLE, BEZIER, NURBS_CIRCLE, NURBS_CURVE, PATH]"
-                )
-
-        obj = bpy.context.active_object
-        if name is not None:
-            obj.name = name
-            
-        return cls(obj)
-    
-        
-    # ---------------------------------------------------------------------------
-    # Bezier points
-    
     @property
     def bpoints(self):
-        return self.wcurve.bpoints
+        splines = self.wcurve.wsplines.obj
+        spline = splines[0]
+        
+        bp = spline.bezier_points
+        
+        count  = len(bp)
+        
+        bpoints = np.empty((count, 9), np.float)
+        
+        bp.foreach_get('co',           bpoints[:, 3:6].reshape(count*3))
+        bp.foreach_get('handle_left',  bpoints[:, 0:3].reshape(count*3))
+        bp.foreach_get('handle_right', bpoints[:, 6:9].reshape(count*3))
+        
+        return bpoints
+    
     
     @bpoints.setter
     def bpoints(self, bpoints):
-        self.wcurve.bpoints = bpoints
         
-    @property
-    def bezier_curve(self):
-        bc = self.wcurve.bezier_curve
-        bc.length = self.obj.path_duration
-        return bc
+        bpoints = bpoints.reshape(np.array(bpoints).size//9, 9)
+        count   = len(bpoints)
+        
+        splines = self.wcurve.wsplines.obj
+        splines.clear()
+        spline = splines.new('BEZIER')
+        
+        bp = spline.bezier_points
+        
+        bp.add(count-len(bp))
+        
+        bp.foreach_set('co',           bpoints[:, 3:6].reshape(count*3))
+        bp.foreach_set('handle_left',  bpoints[:, 0:3].reshape(count*3))
+        bp.foreach_set('handle_right', bpoints[:, 6:9].reshape(count*3))
+        
 
     def set_function(self, f, t0, t1, count=100):
-        self.wcurve.set_function(f, t0, t1, count=count)
+        self.bpoints = BezierCurve.FromFunction(f, t0, t1, count=count).bpoints
         
 
 # =============================================================================================================================
@@ -294,11 +208,9 @@ def wrap(obj):
     elif obj.type == 'EMPTY':
         return WEmpty(obj)
     else:
-        return WObject(obj)
-    
-        #raise WrapException(
-        #    "Object not wrappable", obj,
-        #    f"No wrapper is implemented for type '{obj.type}'")
+        raise WrapException(
+            "Object not wrappable", obj,
+            f"No wrapper is implemented for type '{obj.type}'")
 
 # =============================================================================================================================
 # Keyframe curves
