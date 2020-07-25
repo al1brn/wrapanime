@@ -152,10 +152,7 @@ class MeshBuilder():
         """
 
         n = len(self.verts)
-        if True:
-            self.verts.add(vs)
-        else:
-            self.verts += [Vector(v) for v in vs]
+        self.verts.add(vs)
         return [n+i for i in range(len(vs))]
 
     # =============================================================================
@@ -403,7 +400,7 @@ class MeshBuilder():
     # =============================================================================
 
     @classmethod
-    def FromMesh(cls, obj):
+    def FromMesh(cls, obj, coords='XYZ', func=None):
         """Return a MeshBuilder initialized with a given topology.
         
         Parameters
@@ -425,19 +422,20 @@ class MeshBuilder():
         builder.verts.set_length(len(obj.data.vertices))
         obj.data.vertices.foreach_get('co', builder.verts.linear_array)
         
+        if func is not None:
+            builder.surface = Surface.FromVertices(builder.verts.array, coords, func)
+        
         return builder
 
     # =============================================================================
     # Update the surface computation
     # =============================================================================
     
-    def surface_compute(self, surface=None, t=None):
-        if surface is None:
-            surface = self.surface
-        if surface is None:
+    def surface_compute(self, t=None):
+        if self.surface is None:
             raise WrapException("MeshBuilder surface computation error: the Surface attribute is None. You must initialize it.")
             
-        self.verts.array = surface.compute(t=t)
+        self.verts.array = self.surface.compute(t=t)
 
     # =============================================================================
     # Merge
@@ -775,7 +773,27 @@ class MeshBuilder():
             The indices of the created vertices
         """
         
+        # Base polygon in XY plane
         dag = 2*pi/count
+        ags = np.arange(count)*dag
+        verts = radius*np.stack((np.cos(ags), np.sin(ags), np.zeros(count))).transpose()
+        
+        # Required to be perpendicular to axis
+        axis = wgeo.get_axis(axis)
+        Z = Vector((0, 0, 1))
+        angle = axis.angle(Z)
+        if abs(angle) > 0.001:
+            P = Z.cross(axis)
+            q = Quaternion(P, angle)
+            
+            Mi = q.to_matrix().inverted()
+            verts = np.matmul(verts, Mi)
+            
+        # Add the vertices
+        return self.add_verts(verts)
+            
+        
+        
         if axis == 'X':
             return [(0., radius*cos(i*dag), radius*sin(i*dag)) for i in range(count)]
         elif axis == 'Y':
@@ -1016,6 +1034,32 @@ class MeshBuilder():
         u_loc.append(u_bounds[1])
 
         return u_loc
+    
+    # =============================================================================
+    # Create faces between a loop and a vertex
+    # =============================================================================
+
+    def cone_faces(self, loop, topv):
+        """Create faces between a loop and a top vertex.
+        
+        Parameters
+        ----------
+        loop: array of int
+            Indices of the vertices within the loop
+        topv: int
+            Index of the top vertex
+            
+        Returns
+        -------
+        array of array of int
+            The cteated faces
+        """
+        
+        faces = []
+        n = len(loop)
+        for i in range(n-1):
+            faces.append(self.face([loop[i], loop[(i+1)%n], topv]))
+        return faces
 
     # =============================================================================
     # Link two loops with faces

@@ -156,240 +156,6 @@ def cyl_iterator(z0, z1, x_count=10, y_count=32):
 def tor_iterator(x_count=48, y_count=12):
     return surface_iterator(0., two_pi, 0., two_pi, x_count=x_count, y_count=y_count, x_loop=True, y_loop=True)
 
-# -----------------------------------------------------------------------------------------------------------------------------
-# Calc an uv surface
-
-def calc_uv_surface(f, u0, u1, v0, v1, x_count, y_count):
-    """Compute a surface parametered with two non dimensional parameters.
-    
-    Parameters
-    ----------
-    
-    f: function f(u, v) -> vector
-        The function called for each couple (u, v)
-    u0: float
-        Starting u value
-    u1: float
-        Ending u value
-    v0: float
-        Starting v value
-    v1: float
-        Ending v value
-    x_count: int
-        Number of vertices in the x dimension
-    y_count: int
-        Number of vertices in the y dimension
-            
-    Returns
-    -------
-    array of vertices
-        The vertices of the surface
-    """
-    
-    verts = np.empty((x_count*y_count, 3))
-    for i, (u, v) in zip(itertools.count(), surface_iterator(u0, u1, v0, v1, x_count, y_count)):
-        verts[i] = f(u, v)
-    return verts
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Calc an uv surface
-
-def calc_xyz_surface(f, x0, x1, y0, y1, x_count, y_count):
-    """Compute a surface parametered by x, y coordinates.
-    
-    Parameters
-    ----------
-    
-    f: function f(x, z) -> float
-        Returns z for each (x, y)
-    x0: float
-        Starting x value
-    x1: float
-        Ending x value
-    y0: float
-        Starting y value
-    y1: float
-        Ending y value
-    x_count: int
-        Number of vertices in the x dimension
-    y_count: int
-        Number of vertices in the y dimension
-            
-    Returns
-    -------
-    array of vertices
-        The vertices of the surface
-    """
-    
-    verts = np.empty((x_count*y_count, 3))
-    for i, (x, y) in zip(itertools.count(), surface_iterator(x0, x1, y0, y1, x_count, y_count)):
-        verts[i] = [x, y, f(x, y)]
-    return verts
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Calc a spherical surface
-
-def calc_sph_surface(f, x_count, y_count, phi0=None, phi1=None, theta0=None, theta1=None):
-    """Calc a surface parameterized by a spherical function.
-    
-    if phi or theta limits are not None, the dimension is not looped
-    
-    Parameters
-    ----------
-    
-    f: function f(phi, theta) -> rho
-        Returns rho for each (phi, theta)
-    x_count: int
-        Number of vertices in the x dimension
-    y_count: int
-        Number of vertices in the y dimension
-    phi0: float
-        If given, overrides the default pi/2
-    phi1: float
-        If given, overrides the default -pi/2
-    theta0: float
-        If given, overrides the default 0
-    theta1: float
-        If given, overrides the default 2*pi
-            
-    Returns
-    -------
-    array of vertices
-        The vertices of the surface
-    """
-    
-    
-    y_loop = (theta0, theta1) == (None, None)
-    
-    phi0   =  pi/2 if phi0   is None else phi0
-    phi1   = -pi/2 if phi1   is None else phi1
-    theta0 =  0.   if theta0 is None else theta0
-    theta1 =  2*pi if theta1 is None else theta1
-        
-    verts = np.empty((x_count*y_count, 3))
-    for i, (phi, theta) in zip(itertools.count(), surface_iterator(phi0, phi1, theta0, theta1, x_count, y_count, x_loop=False, y_loop=y_loop)):
-        verts[i] = sph_xyz(phi, theta, f(phi, theta))
-    return verts
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Calc a spherical surface
-
-def calc_cyl_surface(f, z0, z1, x_count, y_count, theta0=None, theta1=None):
-    """Calc a surface parameterized by a cylindrical function.
-    
-    if theta limits are not None, the dimension is not looped
-    
-    Parameters
-    ----------
-    
-    f: function f(z, theta) -> rho
-        Returns rho for each (z, theta)
-    z0: float
-        Starting z value
-    z1: float
-        Ending z value
-    x_count: int
-        Number of vertices in the x dimension
-    y_count: int
-        Number of vertices in the y dimension
-    theta0: float
-        If given, overrides the default 0
-    theta1: float
-        If given, overrides the default 2*pi
-            
-    Returns
-    -------
-    array of vertices
-        The vertices of the surface
-    """
-
-    y_loop = (theta0, theta1) == (None, None)
-    theta0 =  0.   if theta0 is None else theta0
-    theta1 =  pi   if theta1 is None else theta1
-    
-    verts = np.empty((x_count*y_count, 3))
-    for i, (z, theta) in zip(itertools.count(), surface_iterator(z0, z1, theta0, theta1, x_count, y_count, x_loop=False, y_loop=y_loop)):
-        verts[i] = cyl_xyz(z, theta, f(z, theta))
-    return verts
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Calc a toric surface
-
-def calc_tor_surface(f, x_count, y_count, major0=None, major1=None, minor0=None, minor1=None, radius=1.):
-    """Calc a surface parameterized by a torus function.
-    
-    if phi or theta limits are not None, the dimension is not looped
-    
-    Parameters
-    ----------
-    
-    f: function f(theta_major, theta_minor) -> minor_radius
-        Returns rho for each (phi, theta)
-    x_count: int
-        Number of vertices in the x dimension
-    y_count: int
-        Number of vertices in the y dimension
-    major0: float
-        If given, overrides the default 0
-    major1: float
-        If given, overrides the default *pi
-    minor0: float
-        If given, overrides the default 0
-    minor1: float
-        If given, overrides the default 2*pi
-    radius: float
-        Major radius of the tor
-            
-    Returns
-    -------
-    array of vertices
-        The vertices of the surface
-    """
-    
-    
-    x_loop = (major0, major1) == (None, None)
-    y_loop = (minor0, minor1) == (None, None)
-    
-    major0 =  0.   if major0 is None else major0
-    major1 =  2*pi if major1 is None else major1
-    minor0 =  0.   if minor0 is None else minor0
-    minor1 =  2*pi if minor1 is None else minor1
-    
-    verts = np.empty((x_count*y_count, 3))
-    for i, (major, minor) in zip(itertools.count(), surface_iterator(major0, major1, minor0, minor1, x_count, y_count, x_loop=x_loop, y_loop=y_loop)):
-        verts[i] = tor_xyz(major, minor, f(major, minor), radius=radius)
-    return verts
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Calc a sphere
-
-def calc_sphere(radius=1., x_count=17, y_count=32):
-    
-    verts = calc_sph_surface(lambda x, y: radius, x_count, y_count)
-    
-    # Merge the first and the last ring into poles
-    pole0 = verts[0]
-    pole1 = verts[-1]
-    count = (x_count-2)*y_count
-    verts = np.resize(verts[y_count:-y_count], count*3 + 6).reshape(count+2, 3)
-    
-    # And put them at the end
-    verts[-2] = pole0
-    verts[-1] = pole1
-    
-    return verts
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Calc a torus
-
-def calc_torus(major_radius=1, minor_radius=0.25, x_count=42, y_count=12):
-    return calc_tor_surface(lambda x, y: minor_radius, x_count, y_count, radius=major_radius)
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Calc a cone
-
-def calc_cone(z0=-1., z1=1., slope=1., x_count=3, y_count=32):
-    return calc_cyl_surface(lambda z, theta: abs(z*slope), z0, z1, x_count, y_count)
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Surface animator
@@ -476,27 +242,18 @@ class Surface():
             self.npcall = False
             self.vfunc  = np.vectorize(self.func)
             
+        # The coordinates of the vertices of the surface
         self.xys = np.array([[x, y] for x, y in self.iterator()])
         
-        if False:
-            if coords == 'XYZ':
-                self.to_xyz = xyz_xyz
-            elif coords == 'SPH':
-                self.to_xyz = sph_xyz
-            elif coords == 'CYL':
-                self.to_xyz = cyl_xyz
-            elif coords == 'POL':
-                self.to_xyz = pol_xyz
-        else:
-            if coords == 'XYZ':
-                self.to_xyz = vxyz_xyz
-            elif coords == 'SPH':
-                self.to_xyz = vsph_xyz
-            elif coords == 'CYL':
-                self.to_xyz = vcyl_xyz
-            elif coords == 'POL':
-                self.to_xyz = vpol_xyz
-            
+        # Transformation of the result of the function to a vertex
+        if coords == 'XYZ':
+            self.to_xyz = vxyz_xyz
+        elif coords == 'SPH':
+            self.to_xyz = vsph_xyz
+        elif coords == 'CYL':
+            self.to_xyz = vcyl_xyz
+        elif coords == 'POL':
+            self.to_xyz = vpol_xyz
 
     # ----------------------------------------------------------------------------------------------------
     # repr
@@ -583,6 +340,66 @@ class Surface():
         return Surface.Toric(lambda x, y, t=minor_radius: t, radius=radius, x_count=x_count, y_count=y_count)
     
     # ----------------------------------------------------------------------------------------------------
+    # Initialisation from the vertices of an existing mesg
+    
+    @classmethod
+    def FromVertices(cls, verts, coords='XYZ', func=None):
+        
+        surf = cls(func, coords=coords)
+
+        xyz  = np.array(verts)
+        
+        if coords == 'XYZ':
+            surf.xys = np.delete(xyz, 2, axis=1)
+            
+        elif coords == 'SPH':
+            theta    = np.arctan2(xyz[:, 1], xyz[:, 0])
+            rho      = np.linalg.norm(xyz, axis=1)
+            
+            zs       = np.where(rho==0)[0]
+            nzs      = np.delete(np.arange(len(rho)), zs)
+            
+            phi      = xyz[:, 2]
+            phi[zs]  = 0.
+            phi[nzs] = np.arcsin(phi[nzs], rho[nzs])
+            
+            res = np.zeros(len(theta)*2, np.float).reshape(len(theta), 2)
+            res[:, 0] = phi
+            res[:, 1] = theta
+            
+            surf.xys = res
+            
+            if False:
+                print('---')
+                print(phi)
+                print(phi.shape)
+                print('---')
+                print(theta)
+                print(theta.shape)
+                print('---')
+
+                surf.xys = np.stack(phi, theta).transpose()
+        
+        elif coords == 'POL':
+            rho     = np.linalg.norm(xyz[:, 0:2], axis=1)
+            theta   = np.arctan2(xyz[:, 1], xyz[:, 0])
+            
+            surf.xys = np.stack(rho, theta).transpose()
+            
+        elif coords == 'CYL':
+            theta   = np.arctan2(xyz[:, 1], xyz[:, 0])
+            
+            surf.xys = np.stack(xyz[:, 2], theta).transpose()
+        else:
+            raise WrapException(
+                f"Surface.FromVertices error: coords code '{coords}' is not valid",
+                f"Note that TOR coordinates are not supported in FromVertices initializer."
+                )
+            
+        return surf
+    
+    
+    # ----------------------------------------------------------------------------------------------------
     # Number of vertices
     
     @property
@@ -602,6 +419,7 @@ class Surface():
         of self.y_count-1
         """
         return (self.x_count-len(self.poles))*self.y_count
+    
     
     # ----------------------------------------------------------------------------------------------------
     # Iterator

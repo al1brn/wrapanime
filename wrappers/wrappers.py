@@ -43,8 +43,14 @@ def to_vector(value, dim=3):
 
 class WEmpty(WObject):
     def __init__(self, obj):
-        obj = WObject.get_object(obj, 'EMPTY')
+        obj = blender.get_object(obj, 'EMPTY')
         super().__init__(obj)
+        
+    @classmethod
+    def New(cls, name=None):
+        return WObject.New(name=name, otype='EMPTY')
+    
+        
 
 # =============================================================================================================================
 # Mesh object wrapper
@@ -52,7 +58,7 @@ class WEmpty(WObject):
 class WMeshObject(WObject):
     def __init__(self, obj):
 
-        obj = WObject.get_object(obj, 'MESH')
+        obj = blender.get_object(obj, 'MESH')
 
         super().__init__(obj)
         self.wmesh = WMesh(self.obj.data, self)
@@ -218,7 +224,7 @@ class WCurve(wgen.WCurve):
 
 class WCurveObject(WObject):
     def __init__(self, obj):
-        obj = WObject.get_object(obj, 'CURVE')
+        obj = blender.get_object(obj, 'CURVE')
         super().__init__(obj)
         
         self.wcurve   = WCurve(self.obj.data, self)
@@ -285,7 +291,7 @@ class WCurveObject(WObject):
 # Wrap a Blender object
 
 def wrap(obj):
-    obj = WObject.get_object(obj)
+    obj = blender.get_object(obj)
 
     if obj.type == 'MESH':
         return WMeshObject(obj)

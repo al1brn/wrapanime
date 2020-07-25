@@ -1,5 +1,5 @@
 # ****************************************************************************************************
-# Generated 2020-07-19
+# Generated 2020-07-21
 
 import numpy as np
 from wrapanime.wrappers.root import to_array, ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot, WSplineRoot, WSplinesRoot
@@ -2767,9 +2767,9 @@ class WObject(WObjectRoot):
 #================================================================================
 # Array of WObjects
 
-class WObjects(ArrayOf):
-    def __init__(self, wowner):
-        super().__init__(wowner, WObject)
+class WObjects(CollWrapper):
+    def __init__(self, coll, wowner):
+        super().__init__(coll, wowner, WObject)
         self._cache_active_material_indices = None
         self._cache_active_shape_key_indices = None
         self._cache_colors                  = None
@@ -2866,211 +2866,189 @@ class WObjects(ArrayOf):
     def active_material_indices(self): # Array of int
         if self._cache_active_material_indices is None:
             self._cache_active_material_indices = np.empty(len(self), np.int)
-            for i in range(len(self)):
-                self._cache_active_material_indices[i] = self[i].active_material_index
+            self.coll.foreach_get('active_material_index', self._cache_active_material_indices)
         return self._cache_active_material_indices
 
     @active_material_indices.setter
     def active_material_indices(self, values): # Arrayf of int
         self._cache_active_material_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].active_material_index = self._cache_active_material_indices[i]
+        self.coll.foreach_set('active_material_index', self._cache_active_material_indices)
 
     @property
     def active_shape_key_indices(self): # Array of int
         if self._cache_active_shape_key_indices is None:
             self._cache_active_shape_key_indices = np.empty(len(self), np.int)
-            for i in range(len(self)):
-                self._cache_active_shape_key_indices[i] = self[i].active_shape_key_index
+            self.coll.foreach_get('active_shape_key_index', self._cache_active_shape_key_indices)
         return self._cache_active_shape_key_indices
 
     @active_shape_key_indices.setter
     def active_shape_key_indices(self, values): # Arrayf of int
         self._cache_active_shape_key_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].active_shape_key_index = self._cache_active_shape_key_indices[i]
+        self.coll.foreach_set('active_shape_key_index', self._cache_active_shape_key_indices)
 
     @property
     def colors(self): # Array of V4
         if self._cache_colors is None:
-            self._cache_colors = np.empty(len(self)*4, np.float).reshape(len(self), 4)
-            for i in range(len(self)):
-                self._cache_colors[i] = self[i].color
+            self._cache_colors = np.empty(len(self)*4, np.float)
+            self.coll.foreach_get('color', self._cache_colors)
+            self._cache_colors = self._cache_colors.reshape(len(self), 4)
         return self._cache_colors
 
     @colors.setter
     def colors(self, values): # Arrayf of V4
         self._cache_colors = to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors')
-        for i in range(len(self)):
-            self[i].color = self._cache_colors[i]
+        self.coll.foreach_set('color', self._cache_colors.reshape(len(self) * 4))
 
     @property
     def delta_locations(self): # Array of V3
         if self._cache_delta_locations is None:
-            self._cache_delta_locations = np.empty(len(self)*3, np.float).reshape(len(self), 3)
-            for i in range(len(self)):
-                self._cache_delta_locations[i] = self[i].delta_location
+            self._cache_delta_locations = np.empty(len(self)*3, np.float)
+            self.coll.foreach_get('delta_location', self._cache_delta_locations)
+            self._cache_delta_locations = self._cache_delta_locations.reshape(len(self), 3)
         return self._cache_delta_locations
 
     @delta_locations.setter
     def delta_locations(self, values): # Arrayf of V3
         self._cache_delta_locations = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        for i in range(len(self)):
-            self[i].delta_location = self._cache_delta_locations[i]
+        self.coll.foreach_set('delta_location', self._cache_delta_locations.reshape(len(self) * 3))
 
     @property
     def delta_rotation_eulers(self): # Array of V3
         if self._cache_delta_rotation_eulers is None:
-            self._cache_delta_rotation_eulers = np.empty(len(self)*3, np.float).reshape(len(self), 3)
-            for i in range(len(self)):
-                self._cache_delta_rotation_eulers[i] = self[i].delta_rotation_euler
+            self._cache_delta_rotation_eulers = np.empty(len(self)*3, np.float)
+            self.coll.foreach_get('delta_rotation_euler', self._cache_delta_rotation_eulers)
+            self._cache_delta_rotation_eulers = self._cache_delta_rotation_eulers.reshape(len(self), 3)
         return self._cache_delta_rotation_eulers
 
     @delta_rotation_eulers.setter
     def delta_rotation_eulers(self, values): # Arrayf of V3
         self._cache_delta_rotation_eulers = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        for i in range(len(self)):
-            self[i].delta_rotation_euler = self._cache_delta_rotation_eulers[i]
+        self.coll.foreach_set('delta_rotation_euler', self._cache_delta_rotation_eulers.reshape(len(self) * 3))
 
     @property
     def delta_rotation_quaternions(self): # Array of V4
         if self._cache_delta_rotation_quaternions is None:
-            self._cache_delta_rotation_quaternions = np.empty(len(self)*4, np.float).reshape(len(self), 4)
-            for i in range(len(self)):
-                self._cache_delta_rotation_quaternions[i] = self[i].delta_rotation_quaternion
+            self._cache_delta_rotation_quaternions = np.empty(len(self)*4, np.float)
+            self.coll.foreach_get('delta_rotation_quaternion', self._cache_delta_rotation_quaternions)
+            self._cache_delta_rotation_quaternions = self._cache_delta_rotation_quaternions.reshape(len(self), 4)
         return self._cache_delta_rotation_quaternions
 
     @delta_rotation_quaternions.setter
     def delta_rotation_quaternions(self, values): # Arrayf of V4
         self._cache_delta_rotation_quaternions = to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors')
-        for i in range(len(self)):
-            self[i].delta_rotation_quaternion = self._cache_delta_rotation_quaternions[i]
+        self.coll.foreach_set('delta_rotation_quaternion', self._cache_delta_rotation_quaternions.reshape(len(self) * 4))
 
     @property
     def delta_scales(self): # Array of V3
         if self._cache_delta_scales is None:
-            self._cache_delta_scales = np.empty(len(self)*3, np.float).reshape(len(self), 3)
-            for i in range(len(self)):
-                self._cache_delta_scales[i] = self[i].delta_scale
+            self._cache_delta_scales = np.empty(len(self)*3, np.float)
+            self.coll.foreach_get('delta_scale', self._cache_delta_scales)
+            self._cache_delta_scales = self._cache_delta_scales.reshape(len(self), 3)
         return self._cache_delta_scales
 
     @delta_scales.setter
     def delta_scales(self, values): # Arrayf of V3
         self._cache_delta_scales = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        for i in range(len(self)):
-            self[i].delta_scale = self._cache_delta_scales[i]
+        self.coll.foreach_set('delta_scale', self._cache_delta_scales.reshape(len(self) * 3))
 
     @property
     def empty_display_sizes(self): # Array of float
         if self._cache_empty_display_sizes is None:
             self._cache_empty_display_sizes = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_empty_display_sizes[i] = self[i].empty_display_size
+            self.coll.foreach_get('empty_display_size', self._cache_empty_display_sizes)
         return self._cache_empty_display_sizes
 
     @empty_display_sizes.setter
     def empty_display_sizes(self, values): # Arrayf of float
         self._cache_empty_display_sizes = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].empty_display_size = self._cache_empty_display_sizes[i]
+        self.coll.foreach_set('empty_display_size', self._cache_empty_display_sizes)
 
     @property
     def empty_image_offsets(self): # Array of V2
         if self._cache_empty_image_offsets is None:
-            self._cache_empty_image_offsets = np.empty(len(self)*2, np.float).reshape(len(self), 2)
-            for i in range(len(self)):
-                self._cache_empty_image_offsets[i] = self[i].empty_image_offset
+            self._cache_empty_image_offsets = np.empty(len(self)*2, np.float)
+            self.coll.foreach_get('empty_image_offset', self._cache_empty_image_offsets)
+            self._cache_empty_image_offsets = self._cache_empty_image_offsets.reshape(len(self), 2)
         return self._cache_empty_image_offsets
 
     @empty_image_offsets.setter
     def empty_image_offsets(self, values): # Arrayf of V2
         self._cache_empty_image_offsets = to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors')
-        for i in range(len(self)):
-            self[i].empty_image_offset = self._cache_empty_image_offsets[i]
+        self.coll.foreach_set('empty_image_offset', self._cache_empty_image_offsets.reshape(len(self) * 2))
 
     @property
     def dimensions_s(self): # Array of V3
         if self._cache_dimensions_s is None:
-            self._cache_dimensions_s = np.empty(len(self)*3, np.float).reshape(len(self), 3)
-            for i in range(len(self)):
-                self._cache_dimensions_s[i] = self[i].dimensions
+            self._cache_dimensions_s = np.empty(len(self)*3, np.float)
+            self.coll.foreach_get('dimensions', self._cache_dimensions_s)
+            self._cache_dimensions_s = self._cache_dimensions_s.reshape(len(self), 3)
         return self._cache_dimensions_s
 
     @dimensions_s.setter
     def dimensions_s(self, values): # Arrayf of V3
         self._cache_dimensions_s = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        for i in range(len(self)):
-            self[i].dimensions = self._cache_dimensions_s[i]
+        self.coll.foreach_set('dimensions', self._cache_dimensions_s.reshape(len(self) * 3))
 
     @property
     def hide_renders(self): # Array of bool
         if self._cache_hide_renders is None:
             self._cache_hide_renders = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_hide_renders[i] = self[i].hide_render
+            self.coll.foreach_get('hide_render', self._cache_hide_renders)
         return self._cache_hide_renders
 
     @hide_renders.setter
     def hide_renders(self, values): # Arrayf of bool
         self._cache_hide_renders = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].hide_render = self._cache_hide_renders[i]
+        self.coll.foreach_set('hide_render', self._cache_hide_renders)
 
     @property
     def hide_selects(self): # Array of bool
         if self._cache_hide_selects is None:
             self._cache_hide_selects = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_hide_selects[i] = self[i].hide_select
+            self.coll.foreach_get('hide_select', self._cache_hide_selects)
         return self._cache_hide_selects
 
     @hide_selects.setter
     def hide_selects(self, values): # Arrayf of bool
         self._cache_hide_selects = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].hide_select = self._cache_hide_selects[i]
+        self.coll.foreach_set('hide_select', self._cache_hide_selects)
 
     @property
     def hide_viewports(self): # Array of bool
         if self._cache_hide_viewports is None:
             self._cache_hide_viewports = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_hide_viewports[i] = self[i].hide_viewport
+            self.coll.foreach_get('hide_viewport', self._cache_hide_viewports)
         return self._cache_hide_viewports
 
     @hide_viewports.setter
     def hide_viewports(self, values): # Arrayf of bool
         self._cache_hide_viewports = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].hide_viewport = self._cache_hide_viewports[i]
+        self.coll.foreach_set('hide_viewport', self._cache_hide_viewports)
 
     @property
     def instance_faces_scales(self): # Array of float
         if self._cache_instance_faces_scales is None:
             self._cache_instance_faces_scales = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_instance_faces_scales[i] = self[i].instance_faces_scale
+            self.coll.foreach_get('instance_faces_scale', self._cache_instance_faces_scales)
         return self._cache_instance_faces_scales
 
     @instance_faces_scales.setter
     def instance_faces_scales(self, values): # Arrayf of float
         self._cache_instance_faces_scales = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].instance_faces_scale = self._cache_instance_faces_scales[i]
+        self.coll.foreach_set('instance_faces_scale', self._cache_instance_faces_scales)
 
     @property
     def locations(self): # Array of V3
         if self._cache_locations is None:
-            self._cache_locations = np.empty(len(self)*3, np.float).reshape(len(self), 3)
-            for i in range(len(self)):
-                self._cache_locations[i] = self[i].location
+            self._cache_locations = np.empty(len(self)*3, np.float)
+            self.coll.foreach_get('location', self._cache_locations)
+            self._cache_locations = self._cache_locations.reshape(len(self), 3)
         return self._cache_locations
 
     @locations.setter
     def locations(self, values): # Arrayf of V3
         self._cache_locations = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        for i in range(len(self)):
-            self[i].location = self._cache_locations[i]
+        self.coll.foreach_set('location', self._cache_locations.reshape(len(self) * 3))
 
     # xyzw access to locations
 
@@ -3105,43 +3083,38 @@ class WObjects(ArrayOf):
     def lock_scales(self): # Array of bool
         if self._cache_lock_scales is None:
             self._cache_lock_scales = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_lock_scales[i] = self[i].lock_scale
+            self.coll.foreach_get('lock_scale', self._cache_lock_scales)
         return self._cache_lock_scales
 
     @lock_scales.setter
     def lock_scales(self, values): # Arrayf of bool
         self._cache_lock_scales = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].lock_scale = self._cache_lock_scales[i]
+        self.coll.foreach_set('lock_scale', self._cache_lock_scales)
 
     @property
     def pass_indices(self): # Array of int
         if self._cache_pass_indices is None:
             self._cache_pass_indices = np.empty(len(self), np.int)
-            for i in range(len(self)):
-                self._cache_pass_indices[i] = self[i].pass_index
+            self.coll.foreach_get('pass_index', self._cache_pass_indices)
         return self._cache_pass_indices
 
     @pass_indices.setter
     def pass_indices(self, values): # Arrayf of int
         self._cache_pass_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].pass_index = self._cache_pass_indices[i]
+        self.coll.foreach_set('pass_index', self._cache_pass_indices)
 
     @property
     def rotation_eulers(self): # Array of V3
         if self._cache_rotation_eulers is None:
-            self._cache_rotation_eulers = np.empty(len(self)*3, np.float).reshape(len(self), 3)
-            for i in range(len(self)):
-                self._cache_rotation_eulers[i] = self[i].rotation_euler
+            self._cache_rotation_eulers = np.empty(len(self)*3, np.float)
+            self.coll.foreach_get('rotation_euler', self._cache_rotation_eulers)
+            self._cache_rotation_eulers = self._cache_rotation_eulers.reshape(len(self), 3)
         return self._cache_rotation_eulers
 
     @rotation_eulers.setter
     def rotation_eulers(self, values): # Arrayf of V3
         self._cache_rotation_eulers = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        for i in range(len(self)):
-            self[i].rotation_euler = self._cache_rotation_eulers[i]
+        self.coll.foreach_set('rotation_euler', self._cache_rotation_eulers.reshape(len(self) * 3))
 
     # xyzw access to rotation_eulers
 
@@ -3189,30 +3162,28 @@ class WObjects(ArrayOf):
     @property
     def rotation_quaternions(self): # Array of V4
         if self._cache_rotation_quaternions is None:
-            self._cache_rotation_quaternions = np.empty(len(self)*4, np.float).reshape(len(self), 4)
-            for i in range(len(self)):
-                self._cache_rotation_quaternions[i] = self[i].rotation_quaternion
+            self._cache_rotation_quaternions = np.empty(len(self)*4, np.float)
+            self.coll.foreach_get('rotation_quaternion', self._cache_rotation_quaternions)
+            self._cache_rotation_quaternions = self._cache_rotation_quaternions.reshape(len(self), 4)
         return self._cache_rotation_quaternions
 
     @rotation_quaternions.setter
     def rotation_quaternions(self, values): # Arrayf of V4
         self._cache_rotation_quaternions = to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors')
-        for i in range(len(self)):
-            self[i].rotation_quaternion = self._cache_rotation_quaternions[i]
+        self.coll.foreach_set('rotation_quaternion', self._cache_rotation_quaternions.reshape(len(self) * 4))
 
     @property
     def scales(self): # Array of V3
         if self._cache_scales is None:
-            self._cache_scales = np.empty(len(self)*3, np.float).reshape(len(self), 3)
-            for i in range(len(self)):
-                self._cache_scales[i] = self[i].scale
+            self._cache_scales = np.empty(len(self)*3, np.float)
+            self.coll.foreach_get('scale', self._cache_scales)
+            self._cache_scales = self._cache_scales.reshape(len(self), 3)
         return self._cache_scales
 
     @scales.setter
     def scales(self, values): # Arrayf of V3
         self._cache_scales = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        for i in range(len(self)):
-            self[i].scale = self._cache_scales[i]
+        self.coll.foreach_set('scale', self._cache_scales.reshape(len(self) * 3))
 
     # xyzw access to scales
 
@@ -3247,197 +3218,169 @@ class WObjects(ArrayOf):
     def show_all_edges_s(self): # Array of bool
         if self._cache_show_all_edges_s is None:
             self._cache_show_all_edges_s = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_all_edges_s[i] = self[i].show_all_edges
+            self.coll.foreach_get('show_all_edges', self._cache_show_all_edges_s)
         return self._cache_show_all_edges_s
 
     @show_all_edges_s.setter
     def show_all_edges_s(self, values): # Arrayf of bool
         self._cache_show_all_edges_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_all_edges = self._cache_show_all_edges_s[i]
+        self.coll.foreach_set('show_all_edges', self._cache_show_all_edges_s)
 
     @property
     def show_axis_s(self): # Array of bool
         if self._cache_show_axis_s is None:
             self._cache_show_axis_s = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_axis_s[i] = self[i].show_axis
+            self.coll.foreach_get('show_axis', self._cache_show_axis_s)
         return self._cache_show_axis_s
 
     @show_axis_s.setter
     def show_axis_s(self, values): # Arrayf of bool
         self._cache_show_axis_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_axis = self._cache_show_axis_s[i]
+        self.coll.foreach_set('show_axis', self._cache_show_axis_s)
 
     @property
     def show_bounds_s(self): # Array of bool
         if self._cache_show_bounds_s is None:
             self._cache_show_bounds_s = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_bounds_s[i] = self[i].show_bounds
+            self.coll.foreach_get('show_bounds', self._cache_show_bounds_s)
         return self._cache_show_bounds_s
 
     @show_bounds_s.setter
     def show_bounds_s(self, values): # Arrayf of bool
         self._cache_show_bounds_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_bounds = self._cache_show_bounds_s[i]
+        self.coll.foreach_set('show_bounds', self._cache_show_bounds_s)
 
     @property
     def show_empty_image_only_axis_aligneds(self): # Array of bool
         if self._cache_show_empty_image_only_axis_aligneds is None:
             self._cache_show_empty_image_only_axis_aligneds = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_empty_image_only_axis_aligneds[i] = self[i].show_empty_image_only_axis_aligned
+            self.coll.foreach_get('show_empty_image_only_axis_aligned', self._cache_show_empty_image_only_axis_aligneds)
         return self._cache_show_empty_image_only_axis_aligneds
 
     @show_empty_image_only_axis_aligneds.setter
     def show_empty_image_only_axis_aligneds(self, values): # Arrayf of bool
         self._cache_show_empty_image_only_axis_aligneds = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_empty_image_only_axis_aligned = self._cache_show_empty_image_only_axis_aligneds[i]
+        self.coll.foreach_set('show_empty_image_only_axis_aligned', self._cache_show_empty_image_only_axis_aligneds)
 
     @property
     def show_empty_image_orthographics(self): # Array of bool
         if self._cache_show_empty_image_orthographics is None:
             self._cache_show_empty_image_orthographics = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_empty_image_orthographics[i] = self[i].show_empty_image_orthographic
+            self.coll.foreach_get('show_empty_image_orthographic', self._cache_show_empty_image_orthographics)
         return self._cache_show_empty_image_orthographics
 
     @show_empty_image_orthographics.setter
     def show_empty_image_orthographics(self, values): # Arrayf of bool
         self._cache_show_empty_image_orthographics = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_empty_image_orthographic = self._cache_show_empty_image_orthographics[i]
+        self.coll.foreach_set('show_empty_image_orthographic', self._cache_show_empty_image_orthographics)
 
     @property
     def show_empty_image_perspectives(self): # Array of bool
         if self._cache_show_empty_image_perspectives is None:
             self._cache_show_empty_image_perspectives = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_empty_image_perspectives[i] = self[i].show_empty_image_perspective
+            self.coll.foreach_get('show_empty_image_perspective', self._cache_show_empty_image_perspectives)
         return self._cache_show_empty_image_perspectives
 
     @show_empty_image_perspectives.setter
     def show_empty_image_perspectives(self, values): # Arrayf of bool
         self._cache_show_empty_image_perspectives = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_empty_image_perspective = self._cache_show_empty_image_perspectives[i]
+        self.coll.foreach_set('show_empty_image_perspective', self._cache_show_empty_image_perspectives)
 
     @property
     def show_in_fronts(self): # Array of bool
         if self._cache_show_in_fronts is None:
             self._cache_show_in_fronts = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_in_fronts[i] = self[i].show_in_front
+            self.coll.foreach_get('show_in_front', self._cache_show_in_fronts)
         return self._cache_show_in_fronts
 
     @show_in_fronts.setter
     def show_in_fronts(self, values): # Arrayf of bool
         self._cache_show_in_fronts = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_in_front = self._cache_show_in_fronts[i]
+        self.coll.foreach_set('show_in_front', self._cache_show_in_fronts)
 
     @property
     def show_instancer_for_renders(self): # Array of bool
         if self._cache_show_instancer_for_renders is None:
             self._cache_show_instancer_for_renders = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_instancer_for_renders[i] = self[i].show_instancer_for_render
+            self.coll.foreach_get('show_instancer_for_render', self._cache_show_instancer_for_renders)
         return self._cache_show_instancer_for_renders
 
     @show_instancer_for_renders.setter
     def show_instancer_for_renders(self, values): # Arrayf of bool
         self._cache_show_instancer_for_renders = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_instancer_for_render = self._cache_show_instancer_for_renders[i]
+        self.coll.foreach_set('show_instancer_for_render', self._cache_show_instancer_for_renders)
 
     @property
     def show_instancer_for_viewports(self): # Array of bool
         if self._cache_show_instancer_for_viewports is None:
             self._cache_show_instancer_for_viewports = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_instancer_for_viewports[i] = self[i].show_instancer_for_viewport
+            self.coll.foreach_get('show_instancer_for_viewport', self._cache_show_instancer_for_viewports)
         return self._cache_show_instancer_for_viewports
 
     @show_instancer_for_viewports.setter
     def show_instancer_for_viewports(self, values): # Arrayf of bool
         self._cache_show_instancer_for_viewports = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_instancer_for_viewport = self._cache_show_instancer_for_viewports[i]
+        self.coll.foreach_set('show_instancer_for_viewport', self._cache_show_instancer_for_viewports)
 
     @property
     def show_names(self): # Array of bool
         if self._cache_show_names is None:
             self._cache_show_names = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_names[i] = self[i].show_name
+            self.coll.foreach_get('show_name', self._cache_show_names)
         return self._cache_show_names
 
     @show_names.setter
     def show_names(self, values): # Arrayf of bool
         self._cache_show_names = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_name = self._cache_show_names[i]
+        self.coll.foreach_set('show_name', self._cache_show_names)
 
     @property
     def show_only_shape_keys(self): # Array of bool
         if self._cache_show_only_shape_keys is None:
             self._cache_show_only_shape_keys = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_only_shape_keys[i] = self[i].show_only_shape_key
+            self.coll.foreach_get('show_only_shape_key', self._cache_show_only_shape_keys)
         return self._cache_show_only_shape_keys
 
     @show_only_shape_keys.setter
     def show_only_shape_keys(self, values): # Arrayf of bool
         self._cache_show_only_shape_keys = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_only_shape_key = self._cache_show_only_shape_keys[i]
+        self.coll.foreach_set('show_only_shape_key', self._cache_show_only_shape_keys)
 
     @property
     def show_texture_spaces(self): # Array of bool
         if self._cache_show_texture_spaces is None:
             self._cache_show_texture_spaces = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_texture_spaces[i] = self[i].show_texture_space
+            self.coll.foreach_get('show_texture_space', self._cache_show_texture_spaces)
         return self._cache_show_texture_spaces
 
     @show_texture_spaces.setter
     def show_texture_spaces(self, values): # Arrayf of bool
         self._cache_show_texture_spaces = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_texture_space = self._cache_show_texture_spaces[i]
+        self.coll.foreach_set('show_texture_space', self._cache_show_texture_spaces)
 
     @property
     def show_transparents(self): # Array of bool
         if self._cache_show_transparents is None:
             self._cache_show_transparents = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_transparents[i] = self[i].show_transparent
+            self.coll.foreach_get('show_transparent', self._cache_show_transparents)
         return self._cache_show_transparents
 
     @show_transparents.setter
     def show_transparents(self, values): # Arrayf of bool
         self._cache_show_transparents = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_transparent = self._cache_show_transparents[i]
+        self.coll.foreach_set('show_transparent', self._cache_show_transparents)
 
     @property
     def show_wires(self): # Array of bool
         if self._cache_show_wires is None:
             self._cache_show_wires = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_show_wires[i] = self[i].show_wire
+            self.coll.foreach_get('show_wire', self._cache_show_wires)
         return self._cache_show_wires
 
     @show_wires.setter
     def show_wires(self, values): # Arrayf of bool
         self._cache_show_wires = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].show_wire = self._cache_show_wires[i]
+        self.coll.foreach_set('show_wire', self._cache_show_wires)
 
     @property
     def track_axis_s(self): # Array of str
@@ -3479,57 +3422,49 @@ class WObjects(ArrayOf):
     def use_empty_image_alphas(self): # Array of bool
         if self._cache_use_empty_image_alphas is None:
             self._cache_use_empty_image_alphas = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_empty_image_alphas[i] = self[i].use_empty_image_alpha
+            self.coll.foreach_get('use_empty_image_alpha', self._cache_use_empty_image_alphas)
         return self._cache_use_empty_image_alphas
 
     @use_empty_image_alphas.setter
     def use_empty_image_alphas(self, values): # Arrayf of bool
         self._cache_use_empty_image_alphas = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_empty_image_alpha = self._cache_use_empty_image_alphas[i]
+        self.coll.foreach_set('use_empty_image_alpha', self._cache_use_empty_image_alphas)
 
     @property
     def use_instance_faces_scales(self): # Array of bool
         if self._cache_use_instance_faces_scales is None:
             self._cache_use_instance_faces_scales = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_instance_faces_scales[i] = self[i].use_instance_faces_scale
+            self.coll.foreach_get('use_instance_faces_scale', self._cache_use_instance_faces_scales)
         return self._cache_use_instance_faces_scales
 
     @use_instance_faces_scales.setter
     def use_instance_faces_scales(self, values): # Arrayf of bool
         self._cache_use_instance_faces_scales = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_instance_faces_scale = self._cache_use_instance_faces_scales[i]
+        self.coll.foreach_set('use_instance_faces_scale', self._cache_use_instance_faces_scales)
 
     @property
     def use_instance_vertices_rotations(self): # Array of bool
         if self._cache_use_instance_vertices_rotations is None:
             self._cache_use_instance_vertices_rotations = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_instance_vertices_rotations[i] = self[i].use_instance_vertices_rotation
+            self.coll.foreach_get('use_instance_vertices_rotation', self._cache_use_instance_vertices_rotations)
         return self._cache_use_instance_vertices_rotations
 
     @use_instance_vertices_rotations.setter
     def use_instance_vertices_rotations(self, values): # Arrayf of bool
         self._cache_use_instance_vertices_rotations = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_instance_vertices_rotation = self._cache_use_instance_vertices_rotations[i]
+        self.coll.foreach_set('use_instance_vertices_rotation', self._cache_use_instance_vertices_rotations)
 
     @property
     def use_shape_key_edit_modes(self): # Array of bool
         if self._cache_use_shape_key_edit_modes is None:
             self._cache_use_shape_key_edit_modes = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_shape_key_edit_modes[i] = self[i].use_shape_key_edit_mode
+            self.coll.foreach_get('use_shape_key_edit_mode', self._cache_use_shape_key_edit_modes)
         return self._cache_use_shape_key_edit_modes
 
     @use_shape_key_edit_modes.setter
     def use_shape_key_edit_modes(self, values): # Arrayf of bool
         self._cache_use_shape_key_edit_modes = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_shape_key_edit_mode = self._cache_use_shape_key_edit_modes[i]
+        self.coll.foreach_set('use_shape_key_edit_mode', self._cache_use_shape_key_edit_modes)
 
     @property
     def quaternions(self): # Array of V4

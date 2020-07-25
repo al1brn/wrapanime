@@ -11,7 +11,9 @@ import itertools
 import numpy as np
 
 import bpy
-from mathutils import Vector, Quaternion
+from mathutils import Vector
+
+from wrapanime.utils import blender
 
 from wrapanime.utils import geometry as geo
 from wrapanime.functions.bezier import BezierCurve
@@ -20,15 +22,44 @@ import wrapanime.cython.arrays as arrays
 from wrapanime.utils.errors import WrapShapeException, WrapException
 
 # =============================================================================================================================
-# Adust the shape of a value
+# Adjust the shape of a value
 # If the shape is a single value, it is used to fill an array
 # Otherwise, raise an error
 
 def to_array(values, shape, error_message):
 
-    # Shape can be built as (n, 1) in that case we have to use (n)
+    # Shape can be dynamically built as (n, 1) in that case we have to use (n)
     if len(shape) > 1 and shape[-1] == 1:
-        shape = [shape[i] for i in range(len(shape)-1)]
+        shape = np.array(shape)[:len(shape)-1]
+        
+    # Target size
+    target_size = np.prod(shape)
+    
+    # Source size
+    source_size = np.array(values).size
+
+    # Sizes are the same (n, 3) <- (n, 3)
+    if source_size == target_size:
+        return values
+    
+    # A single value as an input : (n, 3) <- 1
+    if source_size == 1:
+        return np.full(shape, values)
+    
+    # Partial shape : (n, 3) <- (3)
+    for i in range(len(shape)-1):
+        if source_size == np.prod(shape[i-1:]):
+            return np.full(shape, values)
+        
+    raise WrapException(
+        f"Broadcast error : impossible to braodcast array of shape {np.array(values).shape} to array {shape} ({error_message})"
+        )
+    
+    # OLD
+    
+    
+    
+    
 
     # Values is a list
     if hasattr(values, '__len__'):
@@ -208,6 +239,22 @@ class Wrapper():
             name = f"{self.obj}"
             
         return f"Wrapper[{name} type:{type(self.obj).__name__}]"
+    
+    @classmethod
+    def New(cls, name=None, otype='EMPTY', **kwargs):
+        
+        if name is not None:
+            obj = blender.get_object(name, mandatory=False, otype=otype)
+            if obj is not None:
+                return cls(obj)
+            
+        bpy.ops.object.add(type=otype, **kwargs)
+        
+        obj = bpy.context.active_object
+        if name is not None:
+            obj.name = name
+        
+        return cls(obj)
         
 
     @classmethod
@@ -271,12 +318,12 @@ class CollWrapper():
 class WObjectRoot(Wrapper):
 
     def __init__(self, obj, wowner=None):
-        super().__init__(WObjectRoot.get_object(obj), wowner)
+        super().__init__(blender.get_object(obj), wowner)
         self._eval_object = None
         self._averts      = None
 
     @classmethod
-    def get_object(cls, obj, otype=None):
+    def get_object_OLD(cls, obj, otype=None):
         if type(obj) is str:
             o = bpy.data.objects.get(obj)
             if o is None:
