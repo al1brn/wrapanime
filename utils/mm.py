@@ -6,6 +6,13 @@ Created on Tue Jul 28 16:13:18 2020
 @author: alain.bernard@loreal.com
 """
 
+def transp(m):
+    t = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    for i in range(3):
+        for j in range(3):
+            t[i][j] = m[j][i]
+    return t
+
 def pmat(m):
     print('-'*70)
     for i in range(3):
@@ -69,7 +76,47 @@ for axis in 'XYZ':
     
 orders = ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX']
 for order in orders:
-    print(order)
-    pmat(morder(order))
+    if order in ['XYZ']:
+        print(order)
+        pmat(morder(order))
+    if order in ['ZYX']:
+        print("T(order)")
+        pmat(transp(morder(order)))
+    
+def test(order):
+    transpose = False
+    if order in ['XYZ', 'ZYX']:
+        l, c, sgn = (2, 0, -1)
+        la1, ca1, la2, ca2 = (2, 1, 2, 2)
+        lb1, cb1, lb2, cb2 = (1, 0, 0, 0)
+        
+        lc1, cc1, lc2, cc2 = (1, 1, 0, 1)
+        zero, diff = (1, 2)
+        
+        x, y, z = (1, 0, 2)
+        
+        if order == 'ZYX':
+            transpose = True
+            sgn *= +1
+            
+            
+    angle[0] = np.arcsin(m[l, c]) * sgn
+    angle[1] = np.arctan2( sgn * m[la1, ca1], m[la2, ca2])
+    angle[2] = np.arctan2(-sgn * m[lc1, cc1], m[lc2, cc2])
+    
+    if True:
+        angle[0] = pi/2
+        angle[zero] = 0
+        angle[diff] = np.arctan2()
+        
+    
+    euler = (angle[x], angle[y], angle[z])
+    
+    
+            
+        
+        
+        
+    
     
 
