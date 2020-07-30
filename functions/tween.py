@@ -292,7 +292,7 @@ class Easing():
             if hasattr(t, '__len__'):
                 y = np.empty_like(t)
                 
-i                inf = np.where(t<=1)[0]
+                inf = np.where(t<=1)[0]
                 sup = np.delete(np.arange(len(t)), inf)
                 
                 y[inf] = self.canonic(t[inf])/2

@@ -2,14 +2,14 @@ import itertools
 from math import pi, degrees, radians
 import numpy as np
 
-import wrapanime
-from wrapanime.utils.errors import WrapException
+#import wrapanime
+#from wrapanime.utils.errors import WrapException
 
 # Default ndarray float type
 ftype = np.float
 
 # Zero
-zero = 0.0001
+zero = 1e-6
 
 
 # -----------------------------------------------------------------------------------------------------------------------------
@@ -581,6 +581,168 @@ def m_invert(m):
 # The conversion depends upon the order
 
 def m_to_euler(m, order='XYZ'):
+    """Transform matrices to euler triplets.
+    
+    Parameters
+    ----------
+    m: array(3 x 3) or array or array(3 x 3)
+        The matrices
+    order: str
+        A valid order in euler_orders
+        
+    Returns
+    -------
+    array(3) or array of array(3)
+        The euler triplets
+    """
+    
+    ms = np.array(m, ftype)
+    
+    if not(
+        ((len(ms.shape) > 1) and (ms.shape[-2] == 3) and (ms.shape[-2] == 3) ) and \
+        (len(ms.shape) <= 3) \
+        ):
+        raise WrapException(
+            f"m_to_euler error: argument must be a matrix(3x3) or an array of matrices. Impossible to convert shape {ms.shape}.",
+            _str(ms, 2)
+            )
+        
+    single = len(ms.shape) == 2
+    if single:
+        ms = np.reshape(ms, (1, 3, 3))
+        
+    # ---------------------------------------------------------------------------
+    # Indices in the array to compute the angles
+
+    if order == 'XYZ':
+        
+        # cz.cy              | cz.sy.sx - sz.cx   | cz.sy.cx + sz.sx  
+        # sz.cy              | sz.sy.sx + cz.cx   | sz.sy.cx - cz.sx  
+        # -sy                | cy.sx              | cy.cx        
+        
+        xyz = [1, 0, 2]
+        
+        ls0, cs0, sgn = (2, 0, -1)
+        ls1, cs1, lc1, cc1 = (2, 1, 2, 2)
+        ls2, cs2, lc2, cc2 = (1, 0, 0, 0)
+        
+        ls3, cs3, lc3, cc3 = (0, 1, 1, 1)
+        
+    elif order == 'XZY':
+        
+        # cy.cz              | -cy.sz.cx + sy.sx  | cy.sz.sx + sy.cx  
+        # sz                 | cz.cx              | -cz.sx            
+        # -sy.cz             | sy.sz.cx + cy.sx   | -sy.sz.sx + cy.cx    
+        
+        xyz = [1, 2, 0]
+        
+        ls0, cs0, sgn = (1, 0, +1)
+        ls1, cs1, lc1, cc1 = (1, 2, 1, 1)
+        ls2, cs2, lc2, cc2 = (2, 0, 0, 0)
+        
+        ls3, cs3, lc3, cc3 = (0, 2, 2, 2)
+        
+    elif order == 'YXZ':
+        
+        # cz.cy - sz.sx.sy   | -sz.cx             | cz.sy + sz.sx.cy  
+        # sz.cy + cz.sx.sy   | cz.cx              | sz.sy - cz.sx.cy  
+        # -cx.sy             | sx                 | cx.cy
+                     
+        xyz = [0, 1, 2]
+        
+        ls0, cs0, sgn = (2, 1, +1)
+        ls1, cs1, lc1, cc1 = (2, 0, 2, 2)
+        ls2, cs2, lc2, cc2 = (0, 1, 1, 1)
+        
+        ls3, cs3, lc3, cc3 = (1, 0, 0, 0)
+        
+    elif order == 'YZX':
+        
+        # cz.cy              | -sz                | cz.sy             
+        # cx.sz.cy + sx.sy   | cx.cz              | cx.sz.sy - sx.cy  
+        # sx.sz.cy - cx.sy   | sx.cz              | sx.sz.sy + cx.cy    
+                   
+        xyz = [2, 1, 0]
+        
+        ls0, cs0, sgn = (0, 1, -1)
+        ls1, cs1, lc1, cc1 = (0, 2, 0, 0)
+        ls2, cs2, lc2, cc2 = (2, 1, 1, 1)
+        
+        ls3, cs3, lc3, cc3 = (1, 2, 2, 2)
+        
+    elif order == 'ZXY':
+        
+        # cy.cz + sy.sx.sz   | -cy.sz + sy.sx.cz  | sy.cx             
+        # cx.sz              | cx.cz              | -sx               
+        # -sy.cz + cy.sx.sz  | sy.sz + cy.sx.cz   | cy.cx  
+                              
+        xyz = [0, 2, 1]
+        
+        ls0, cs0, sgn = (1, 2, -1)
+        ls1, cs1, lc1, cc1 = (1, 0, 1, 1)
+        ls2, cs2, lc2, cc2 = (0, 2, 2, 2)
+        
+        ls3, cs3, lc3, cc3 = (2, 0, 0, 0)
+        
+    elif order == 'ZYX':
+        
+        # cy.cz              | -cy.sz             | sy                
+        # cx.sz + sx.sy.cz   | cx.cz - sx.sy.sz   | -sx.cy            
+        # sx.sz - cx.sy.cz   | sx.cz + cx.sy.sz   | cx.cy
+
+        xyz = [2, 0, 1]
+        
+        ls0, cs0, sgn = (0, 2, +1)
+        ls1, cs1, lc1, cc1 = (0, 1, 0, 0)
+        ls2, cs2, lc2, cc2 = (1, 2, 2, 2)
+        
+        ls3, cs3, lc3, cc3 = (2, 1, 1, 1)
+        
+    else:
+        raise WrapException(f"m_to_euler error: '{order}' is not a valid euler order")
+        
+    # ---------------------------------------------------------------------------
+    # Compute the euler angles
+    
+    angles = np.zeros((len(ms), 3), ftype)   # Place holder for the angles in the order of their computation
+    
+    # Computation depends upoin sin(angle 0) == ±1
+    
+    #rem    = np.arange(len(ms))                           # sin(angle 0) ≠ ±1
+    
+    neg_1  = np.where(np.abs(ms[:, ls0, cs0] + 1) < zero)[0] # sin(angle 0) = -1
+    pos_1  = np.where(np.abs(ms[:, ls0, cs0] - 1) < zero)[0] # sin(angle 0) = +1
+    rem    = np.delete(np.arange(len(ms)), np.concatenate((neg_1, pos_1)))
+    
+    
+    if len(neg_1) > 0:
+        angles[neg_1, 0] = -pi/2 * sgn
+        angles[neg_1, 1] = 0
+        angles[neg_1, 2] = np.arctan2(sgn * ms[neg_1, ls3, cs3], ms[neg_1, lc3, cc3])
+        
+    if len(pos_1) > 0:
+        angles[pos_1, 0] = pi/2 * sgn
+        angles[pos_1, 1] = 0
+        angles[pos_1, 2] = np.arctan2(sgn * ms[pos_1, ls3, cs3], ms[pos_1, lc3, cc3])
+        
+    if len(rem) > 0:
+        angles[rem, 0] = sgn * np.arcsin(ms[rem, ls0, cs0])
+        angles[rem, 1] = np.arctan2(-sgn * ms[rem, ls1, cs1], ms[rem, lc1, cc1])
+        angles[rem, 2] = np.arctan2(-sgn * ms[rem, ls2, cs2], ms[rem, lc2, cc2])
+        
+    # ---------------------------------------------------------------------------
+    # Returns the result
+    
+    if single:
+        return angles[0, xyz]
+    else:
+        return angles[:, xyz]
+    
+# -----------------------------------------------------------------------------------------------------------------------------
+# Convert a matrix to euler
+# The conversion depends upon the order
+
+def m_to_euler_OLD(m, order='XYZ'):
     """Transform matrices to euler triplets.
     
     Parameters
@@ -1247,6 +1409,120 @@ def e_to_matrix(e, order='XYZ'):
             f"e_to_mat error: argument must be euler triplets, a vector(3) or and array of vectors(3), not shape {es.shape}",
             _str(es, 1, 'euler')
             )
+
+    if not order in euler_orders:
+        raise WrapException(f"e_to_mat error: '{order}' is not a valid code for euler order, must be in {euler_orders}")
+        
+    single = len(es.shape) == 1
+    if single:
+        es = np.reshape(es, (1, 3))
+        
+    m = np.zeros((len(es), 3, 3), ftype)
+    
+    cx = np.cos(es[:, 0])
+    sx = np.sin(es[:, 0])
+    cy = np.cos(es[:, 1])
+    sy = np.sin(es[:, 1])
+    cz = np.cos(es[:, 2])
+    sz = np.sin(es[:, 2])
+
+    if order == 'XYZ':
+        m[:, 0, 0] = cz*cy
+        m[:, 0, 1] = cz*sy*sx - sz*cx
+        m[:, 0, 2] = cz*sy*cx + sz*sx
+        m[:, 1, 0] = sz*cy
+        m[:, 1, 1] = sz*sy*sx + cz*cx
+        m[:, 1, 2] = sz*sy*cx - cz*sx
+        m[:, 2, 0] = -sy
+        m[:, 2, 1] = cy*sx
+        m[:, 2, 2] = cy*cx
+
+    elif order == 'XZY':
+        m[:, 0, 0] = cy*cz
+        m[:, 0, 1] = -cy*sz*cx + sy*sx
+        m[:, 0, 2] = cy*sz*sx + sy*cx
+        m[:, 1, 0] = sz
+        m[:, 1, 1] = cz*cx
+        m[:, 1, 2] = -cz*sx
+        m[:, 2, 0] = -sy*cz
+        m[:, 2, 1] = sy*sz*cx + cy*sx
+        m[:, 2, 2] = -sy*sz*sx + cy*cx
+
+    elif order == 'YXZ':
+        m[:, 0, 0] = cz*cy - sz*sx*sy
+        m[:, 0, 1] = -sz*cx
+        m[:, 0, 2] = cz*sy + sz*sx*cy
+        m[:, 1, 0] = sz*cy + cz*sx*sy
+        m[:, 1, 1] = cz*cx
+        m[:, 1, 2] = sz*sy - cz*sx*cy
+        m[:, 2, 0] = -cx*sy
+        m[:, 2, 1] = sx
+        m[:, 2, 2] = cx*cy
+
+    elif order == 'YZX':
+        m[:, 0, 0] = cz*cy
+        m[:, 0, 1] = -sz
+        m[:, 0, 2] = cz*sy
+        m[:, 1, 0] = cx*sz*cy + sx*sy
+        m[:, 1, 1] = cx*cz
+        m[:, 1, 2] = cx*sz*sy - sx*cy
+        m[:, 2, 0] = sx*sz*cy - cx*sy
+        m[:, 2, 1] = sx*cz
+        m[:, 2, 2] = sx*sz*sy + cx*cy
+
+    elif order == 'ZXY':
+        m[:, 0, 0] = cy*cz + sy*sx*sz
+        m[:, 0, 1] = -cy*sz + sy*sx*cz
+        m[:, 0, 2] = sy*cx
+        m[:, 1, 0] = cx*sz
+        m[:, 1, 1] = cx*cz
+        m[:, 1, 2] = -sx
+        m[:, 2, 0] = -sy*cz + cy*sx*sz
+        m[:, 2, 1] = sy*sz + cy*sx*cz
+        m[:, 2, 2] = cy*cx
+
+    elif order == 'ZYX':
+        m[:, 0, 0] = cy*cz
+        m[:, 0, 1] = -cy*sz
+        m[:, 0, 2] = sy
+        m[:, 1, 0] = cx*sz + sx*sy*cz
+        m[:, 1, 1] = cx*cz - sx*sy*sz
+        m[:, 1, 2] = -sx*cy
+        m[:, 2, 0] = sx*sz - cx*sy*cz
+        m[:, 2, 1] = sx*cz + cx*sy*sz
+        m[:, 2, 2] = cx*cy    
+    
+    if single:
+        return m[0]
+    else:
+        return m
+        
+
+# -----------------------------------------------------------------------------------------------------------------------------
+# Convert euler to a rotation matrix
+
+def e_to_matrix_OLD(e, order='XYZ'):
+    """Transform euler triplets to matrices
+    
+    Parameters
+    ----------
+    e: array(3) or array or array(3)
+        The eulers triplets
+    order: str
+        A valid order in euler_orders
+    
+    Returns
+    -------
+    array(3 x 3) or array of array(3 x 3)
+    """
+    
+    es = np.array(e, ftype)
+    
+    if not ( ( (len(es.shape) == 1) and (len(es)==3) ) or ( (len(es.shape) == 2) and (es.shape[-1]==3)) ):
+        raise WrapException(
+            f"e_to_mat error: argument must be euler triplets, a vector(3) or and array of vectors(3), not shape {es.shape}",
+            _str(es, 1, 'euler')
+            )
         
     if not order in euler_orders:
         raise WrapException(f"e_to_mat error: '{order}' is not a valid code for euler order, must be in {euler_orders}")
@@ -1778,21 +2054,6 @@ def test_m_to_euler():
     
 #test_m_to_euler()    
 
-order = 'XYZ'
-m = np.array([
-    [-0.73, -0.58, -0.36],
-    [ 0.68, -0.63, -0.37],
-    [-0.02, -0.51,  0.86]
-    ])
-e = m_to_euler(m, order)
-mb = e_to_matrix(e, order)
-
-print(_str(m, 2))
-print(_str(e, 1, 'degrees'), order)
-print(_str(mb, 2))
-print("diff", np.linalg.norm(m.reshape(9) - mb.reshape(9)))
-print(_str(m_rotate(m,  (1, 1, 1))))
-print(_str(m_rotate(mb, (1, 1, 1))))
 
     
     
@@ -2188,7 +2449,9 @@ def test_matrices(count=10, size=3):
 def test_eulers(count=10):
     e = [(10, 0, 0), (0, 20, 0), (0, 0, 30),
          (10, 20, 0), (10, 0, 30), (0, 20, 30),
-         (10, 20, 30)
+         (10, 20, 30),
+         (90, 20, 30), (10, 90, 30), (10, 20, 90),
+         (-90, 20, 30), (10, -90, 30), (10, 20, -90)
         ]
         
     for i in range(count):
@@ -2254,13 +2517,18 @@ def m_to_euler_test():
 
     return mess
 
-def e_to_matrix_test():
-    e = test_eulers(30)         # A set of euler triplets
-    v = test_vectors(len(e))    # Vectors to test the eulers
+def e_to_matrix_test(count=30):
+    e = test_eulers(count)         # A set of euler triplets
+    #e = [(radians(304), radians(293), radians(304))]
+    #e = [(radians(0), radians(20), radians(0))]
+    #e = [(radians(10), radians(20), radians(30))]
+    e = np.resize(e, (count, 3))
+    v = test_vectors(count)    # Vectors to test the eulers
     
     mess = ""
     
-    for order in euler_orders:
+    
+    for order in ['XYZ']: #euler_orders:
         eb = m_to_euler(e_to_matrix(e, order), order) # Back and forth
         
         v1 = e_rotate(e,  v)        # Rotate with initial ones
@@ -2272,7 +2540,6 @@ def e_to_matrix_test():
 
     return mess
 
-    
-#print(e_to_matrix_test())    
+print(e_to_matrix_test(10000))    
 
 
