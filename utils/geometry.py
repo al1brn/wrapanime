@@ -46,12 +46,12 @@ def get_axis(straxis, default=(0, 0, 1)):
     # Axis by str
     if hasstr:
         
-        pxs = np.where(axis == 'X')
-        pys = np.where(axis == 'Y')
-        pzs = np.where(axis == 'Z')
-        nxs = np.where(axis == '-X')
-        nys = np.where(axis == '-Y')
-        nzs = np.where(axis == '-Z')
+        pxs = np.where(axis == 'X')[0]
+        pys = np.where(axis == 'Y')[0]
+        pzs = np.where(axis == 'Z')[0]
+        nxs = np.where(axis == '-X')[0]
+        nys = np.where(axis == '-Y')[0]
+        nzs = np.where(axis == '-Z')[0]
         
         As[pxs] = [ 1,  0,  0]
         As[pys] = [ 0,  1,  0]
@@ -61,13 +61,7 @@ def get_axis(straxis, default=(0, 0, 1)):
         As[nys] = [ 0, -1,  0]
         As[nzs] = [ 0,  0, -1]
         
-        chs = np.append(pxs, pys)
-        chs = np.append(chs, pzs)
-        chs = np.append(chs, nxs)
-        chs = np.append(chs, nys)
-        chs = np.append(chs, nzs)
-        
-        rem = np.delete(rem, chs)
+        rem = np.delete(rem, np.concatenate(pxs, pys, pzs, nxs, nys, nzs))
         
         with_chars = True
         
@@ -738,236 +732,7 @@ def m_to_euler(m, order='XYZ'):
     else:
         return angles[:, xyz]
     
-# -----------------------------------------------------------------------------------------------------------------------------
-# Convert a matrix to euler
-# The conversion depends upon the order
 
-def m_to_euler_OLD(m, order='XYZ'):
-    """Transform matrices to euler triplets.
-    
-    Parameters
-    ----------
-    m: array(3 x 3) or array or array(3 x 3)
-        The matrices
-    order: str
-        A valid order in euler_orders
-        
-    Returns
-    -------
-    array(3) or array of array(3)
-        The euler triplets
-    """
-    
-    zero = 0.0001
-    ms = np.array(m, ftype)
-    
-    if not(
-        ((len(ms.shape) > 1) and (ms.shape[-2] == 3) and (ms.shape[-2] == 3) ) and \
-        (len(ms.shape) <= 3) \
-        ):
-        raise WrapException(
-            f"m_to_euler error: argument must be a matrix(3x3) or an array of matrices. Impossible to convert shape {ms.shape}.",
-            _str(ms, 2)
-            )
-        
-    # ---------------------------------------------------------------------------
-    # Indices in the array to compute the angles
-    #
-    # Base computation for XYZ is
-    #
-    #    if abs(ms[2, 0] + 1) < zero:
-    #        phi    = 0.
-    #        theta  = pi/2
-    #        psy    = np.arctan2(ms[0, 1], ms[0, 2])
-    #    elif abs(ms[2, 0] - 1) < zero:
-    #        phi    = 0.
-    #        theta  = -pi/2
-    #        psy    = -np.arctan2(ms[0, 1], ms[0, 2])
-    #    else:
-    #        theta  = -np.arcsin(ms[2, 0])
-    #        ctheta = np.cos(theta)
-    #        psy    = np.arctan2(ms[2, 1]/ctheta, ms[2, 2]/ctheta)
-    #        phi    = np.arctan2(ms[1, 0]/ctheta, ms[0, 0]/ctheta)
-    
-    transpose = False
-        
-    one = 1
-    if order in ['XYZ', 'ZYX']:
-        th_l = 2
-        th_c = 0
-        
-        ps_l1 = 2
-        ps_c1 = 1
-        ps_l2 = 2
-        ps_c2 = 2
-        
-        ph_l1 = 1
-        ph_c1 = 0
-        ph_l2 = 0
-        ph_c2 = 0
-        
-        # Coef for sin(theta) = +- 1
-        sp_l1 = 0 
-        sp_l2 = 0 
-        sp_c1 = 1
-        sp_c2 = 2
-    
-        if order == 'ZYX':
-            #ms = ms.transpose((0, 2, 1))
-            transpose = True
-            one = -1
-            
-        i_the = 1
-        i_psy = 0
-        i_phi = 2
-        
-    elif order in ['YZX', 'XZY']:
-        th_l = 0
-        th_c = 1
-        
-        ps_l1 = 0
-        ps_c1 = 2
-        ps_l2 = 0
-        ps_c2 = 0
-        
-        ph_l1 = 2
-        ph_c1 = 1
-        ph_l2 = 1
-        ph_c2 = 1
-
-        # Coef for sin(theta) = +- 1
-        sp_l1 = 1 
-        sp_l2 = 2 
-        sp_c1 = 2
-        sp_c2 = 2    
-        
-        if order == 'XZY':
-            #ms = ms.transpose((0, 2, 1))
-            transpose = True
-            one = -1
-
-            sp_l1 = 2 
-            sp_l2 = 1 
-            sp_c1 = 0
-            sp_c2 = 0    
-            
-        i_the = 2
-        i_psy = 1
-        i_phi = 0
-
-    elif order in ['ZXY', 'YXZ']:
-        th_l = 1
-        th_c = 2
-        
-        ps_l1 = 0
-        ps_c1 = 2
-        ps_l2 = 2
-        ps_c2 = 2
-        
-        ph_l1 = 1
-        ph_c1 = 0
-        ph_l2 = 1
-        ph_c2 = 1
-        
-        # Coef for sin(theta) = +- 1
-        sp_l1 = 0 
-        sp_l2 = 0 
-        sp_c1 = 1
-        sp_c2 = 0
-        
-        if order == 'YXZ':
-            #ms = ms.transpose((0, 2, 1))
-            transpose = True
-            one = -1
-            
-            sp_l1 = 2 
-            sp_l2 = 2 
-            sp_c1 = 0
-            sp_c2 = 1
-            
-            
-        i_the = 0
-        i_psy = 1
-        i_phi = 2
-        
-    else:
-        raise WrapException(f"m_to_euler error: '{order}' is not a valid euler order")
-        
-    # ---------------------------------------------------------------------------
-    # A single matrix
-    if len(ms.shape) == 2:
-        
-        if transpose:
-            ms = ms.transpose()
-        
-        # Default algorithm for order = XYZ
-        # Just for reference !
-        if False:
-            if abs(ms[2, 0] + 1) < zero:
-                phi    = 0.
-                theta  = pi/2
-                psy    = np.arctan2(ms[0, 1], ms[0, 2])
-            elif abs(ms[2, 0] - 1) < zero:
-                phi    = 0.
-                theta  = -pi/2
-                psy    = -np.arctan2(ms[0, 1], ms[0, 2])
-            else:
-                theta  = -np.arcsin(np.maximum(-1, np.minimum(1, ms[2, 0])))
-                ctheta = np.cos(theta)
-                psy    = np.arctan2(ms[2, 1]/ctheta, ms[2, 2]/ctheta)
-                phi    = np.arctan2(ms[1, 0]/ctheta, ms[0, 0]/ctheta)
-        
-            return np.array((psy, theta, phi), ftype)
-        else:
-            euler = np.zeros(3, ftype)
-            if abs(ms[th_l, th_c] + 1) < zero:
-                euler[i_phi] = 0.
-                euler[i_the] = pi/2 * one
-                euler[i_psy] = np.arctan2(one * ms[sp_l1, sp_c1], one * ms[sp_l2, sp_c2])
-            elif abs(ms[th_l, th_c] - 1) < zero:
-                euler[i_phi] = 0.
-                euler[i_the] = -pi/2 * one
-                euler[i_psy] = -np.arctan2(one * ms[sp_l1, sp_c1], one * ms[sp_l2, sp_c2])
-            else:
-                euler[i_the] = -one * np.arcsin(np.maximum(-1, np.minimum(1, ms[th_l, th_c])))
-                ctheta       = np.cos(euler[i_the])
-                euler[i_psy] = np.arctan2(one * ms[ps_l1, ps_c1]/ctheta, ms[ps_l2, ps_c2]/ctheta)
-                euler[i_phi] = np.arctan2(one * ms[ph_l1, ph_c2]/ctheta, ms[ph_l2, ph_c2]/ctheta)
-        
-            return euler
-        
-    # ---------------------------------------------------------------------------
-    # Several matrices
-        
-    if transpose:
-        ms = ms.transpose((0, 2, 1))
-    
-    eulers = np.zeros((len(ms), 3), ftype)
-    rem    = np.arange(len(ms))
-    neg_1  = np.where(np.abs(ms[:, th_l, th_c] + 1) < zero)
-    pos_1  = np.where(np.abs(ms[:, th_l, th_c] - 1) < zero)
-    
-    if len(neg_1) > 0:
-        rem = np.delete(rem, neg_1)
-        eulers[neg_1, i_phi] = 0
-        eulers[neg_1, i_the] = pi/2 * one
-        eulers[neg_1, i_psy] = np.arctan2(one * ms[neg_1, sp_l1, sp_c1], one * ms[neg_1, sp_l2, sp_c2])
-        
-    if len(pos_1) > 0:
-        rem = np.delete(rem, pos_1)
-        eulers[pos_1, i_phi] = 0
-        eulers[pos_1, i_the] = -pi/2 * one
-        eulers[pos_1, i_psy] = -np.arctan2(one * ms[pos_1, sp_l1, sp_c1], one * ms[pos_1, sp_l2, sp_c2])
-        
-    if len(rem) > 0:
-        theta  = -one * np.arcsin(np.maximum(-1, np.minimum(1, ms[rem, th_l, th_c])))
-        ctheta = np.cos(theta)
-        eulers[rem, i_the] = theta
-        eulers[rem, i_psy] = np.arctan2(one * ms[rem, ps_l1, ps_c1]/ctheta, ms[rem, ps_l2, ps_c2]/ctheta)
-        eulers[rem, i_phi] = np.arctan2(one * ms[rem, ph_l1, ph_c1]/ctheta, ms[rem, ph_l2, ph_c2]/ctheta)
-            
-        
-    return eulers
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Conversion matrix to quaternion
@@ -1496,48 +1261,6 @@ def e_to_matrix(e, order='XYZ'):
         return m[0]
     else:
         return m
-        
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Convert euler to a rotation matrix
-
-def e_to_matrix_OLD(e, order='XYZ'):
-    """Transform euler triplets to matrices
-    
-    Parameters
-    ----------
-    e: array(3) or array or array(3)
-        The eulers triplets
-    order: str
-        A valid order in euler_orders
-    
-    Returns
-    -------
-    array(3 x 3) or array of array(3 x 3)
-    """
-    
-    es = np.array(e, ftype)
-    
-    if not ( ( (len(es.shape) == 1) and (len(es)==3) ) or ( (len(es.shape) == 2) and (es.shape[-1]==3)) ):
-        raise WrapException(
-            f"e_to_mat error: argument must be euler triplets, a vector(3) or and array of vectors(3), not shape {es.shape}",
-            _str(es, 1, 'euler')
-            )
-        
-    if not order in euler_orders:
-        raise WrapException(f"e_to_mat error: '{order}' is not a valid code for euler order, must be in {euler_orders}")
-        
-    if len(es.shape) == 1:
-        ms = [matrix((1, 0, 0), es[0]),
-              matrix((0, 1, 0), es[1]),
-              matrix((0, 0, 1), es[2])]
-    else:
-        ms = [matrix((1, 0, 0), es[:, 0]),
-              matrix((0, 1, 0), es[:, 1]),
-              matrix((0, 0, 1), es[:, 2])]
-        
-    i, j, k = euler_i[order]
-    return m_mul(ms[k], m_mul(ms[j], ms[i]))
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Rotate a vector with an euler
@@ -2276,7 +1999,7 @@ def test():
 # -----------------------------------------------------------------------------------------------------------------------------
 # TESTS    
 
-track = True
+track = False
 
 def compare(rgeo, rref, dim=1, vtype='scalar', message="Compare"):
     ra = np.array(rgeo)
@@ -2434,8 +2157,8 @@ def test_matrices(count=10, size=3):
         m = []
         
     for i in range(count):
-        rm = np.random.random_sample(size*size).reshape(size, size)
-        rm /= np.power(abs(np.linalg.det(rm)), 1/size)
+        e = np.random.random_sample(3)*2*pi
+        rm = e_to_matrix(e)
         m.append(rm)
         
     m = np.array(m)
@@ -2496,8 +2219,8 @@ def m_invert_test():
     ma = test_matrices(30)
     return test_func1(ma, lambda a: m_invert(a), lambda a: np.linalg.inv(a), 2, 'scalar', 'm_invert')
 
-def m_to_euler_test():
-    m = test_matrices(6)
+def m_to_euler_test(count=30):
+    m = test_matrices(count)
     mess = test_func1(m, lambda a: m_to_euler(a), lambda a: m_to_euler(a), 1, 'scalar', 'm_to_euler')
     
     # test back to matrices
@@ -2508,21 +2231,18 @@ def m_to_euler_test():
         e = m_to_euler(m, order)
         v1 = m_rotate(m, v)
         v2 = e_rotate(e, v)
-        print(_str(v1))
-        print()
-        print(_str(v2))
         mess += compare(v1, v2, 1, 'scalar', f"m_to_euler {order}")
 
         break
+    
+    if mess == "":
+        mess = "m_to_euler: OK"
 
     return mess
 
+
 def e_to_matrix_test(count=30):
     e = test_eulers(count)         # A set of euler triplets
-    #e = [(radians(304), radians(293), radians(304))]
-    #e = [(radians(0), radians(20), radians(0))]
-    #e = [(radians(10), radians(20), radians(30))]
-    e = np.resize(e, (count, 3))
     v = test_vectors(count)    # Vectors to test the eulers
     
     mess = ""
@@ -2537,9 +2257,22 @@ def e_to_matrix_test(count=30):
         for i, a, b in zip(range(len(v1)), v1, v2):
             se = _str(e[i], 1, 'degrees')
             mess += compare(a, b, dim=1, vtype='scalar', message=f"\n{i:2}> e_to_matrix {order} - {se}")
+            
+    if mess == "":
+        mess = "e_to_matrix: OK"
+    
 
     return mess
 
-print(e_to_matrix_test(10000))    
+def m_to_quat_test(count=30):
+    m = test_matrices(count)
+    mess = test_func1(m, lambda a: q_to_matrix(m_to_quat(a)), lambda a: a, 2, 'scalar', 'm_to_quat')
+    if mess == "":
+        mess = "m_to_quat: OK"
+        
+    return mess
+
+
+print(m_to_quat_test(30))
 
 
