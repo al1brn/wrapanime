@@ -55,48 +55,6 @@ def to_array(values, shape, error_message):
         f"Broadcast error : impossible to braodcast array of shape {np.array(values).shape} to array {shape} ({error_message})"
         )
     
-    # OLD
-    
-    
-    
-    
-
-    # Values is a list
-    if hasattr(values, '__len__'):
-        vals = np.array(values)
-
-    # Values is a simple value
-    else:
-        # A single value is acceptable only if the target has one dimension
-        if len(shape) == 1:
-            return np.full(shape, values)
-
-        # Otherwise, it doesn't work
-        raise WrapShapeException(type(values).__name__, shape, "Expected: {}, received: {}".format(error_message, values))
-
-    # If the elements count is the one required, we simply reshape
-    target_size = 1
-    for n in shape:
-        target_size *= n
-
-    if target_size == vals.size:
-        return vals.reshape(shape)
-
-    # The number of elements doesn't match the one which is required
-    # We can see if it is the single array value to set to an array of such arrays
-    # Typical use: array[Vector] = Vector
-
-    if target_size // shape[0] == vals.size:
-        # Tile the resulting array with tile reps
-        # (first dime size, 1, 1, 1)
-        reps = list(shape)
-        for i in range(1, len(reps)):
-            reps[i] = 1
-        return np.tile(vals, reps)
-
-    # We can't to nothing !!!
-
-    raise WrapShapeException(vals.shape, shape, "Expected: {}, received: {}".format(error_message, values))
 
 # =============================================================================================================================
 # A single value can be vertorized using an iterator
@@ -274,23 +232,95 @@ class Wrapper():
     def erase_cache(self):
         pass
     
+    # ----------------------------------------------------------------------------------------------------
+    # Key frame animation
+    
+    def _path_index(self, name):
+        """Transform a user path en blender (data_path, array_index) couple.
+        
+        Parameters
+        ----------
+        name: str
+            An extended data_path string.
+            - 'y' and 'location.y' are interpreted as ('location', 1)
+            - 'data.attr' is interpretated as ('attr', 0) for data property 
+            
+        Returns
+        -------
+        triplet (object, data_path, array_index)
+        """
+        
+        indices = ['x', 'y', 'z', 'w']
+        
+        dic = {
+            'x' : ('location',       0), 'y' : ('location',       1), 'z' : ('location',       2), 
+            'sx': ('scale',          0), 'sy': ('scale',          1), 'sz': ('scale',          2), 
+            'rx': ('rotation_euler', 0), 'ry': ('rotation_euler', 1), 'rz': ('rotation_euler', 2), 
+            }
+        
+        index = 0
+        parts = name.split('.')
+        if parts[-1] in indices:
+            index = indices.index(parts[-1])
+            parts = parts[:-1]
+        else:
+            try:
+                n, index = dic(parts[-1])
+                parts[-1] = n
+            except:
+                pass
+            
+        obj = self.obj
+        for i in range(len(parts)-1):
+            try:
+                obj = getattr(obj, parts[i])
+            except:
+                raise WrapException(
+                    f"Incorrect animation path: '{name}' is not valid for {self}"
+                    )
+                
+        return obj, parts[-1], index
+
+    # ----------------------------------------------------------------------------------------------------
+    # Key frame animation
+        
+    @property
+    def is_animated(self):
+        return blender.is_animated(self.obj)
+        
+    @property
+    def animation(self):
+        return blender.animation_data(self.obj)
+        
+    @property
+    def action(self):
+        return blender.animation_action(self.obj)
+    
+    @property
+    def fcurves(self):
+        return blender.get_fcurves(self.obj)
+    
+    def get_fcurve(self, name):
+        return blender.get_fcurve(self.obj, name)
+    
+    def new_curve(self, name):
+        return blender.new_curve(self.obj, name)
+    
+    # ---------------------------------------------------------------------------
+    # Delete key frames
+    
+    def kf_delete(self, name, frame0=None, frame1=None):
+        blender.kf_delete(self.obj, name, frame0, frame1)
+    
+    # ---------------------------------------------------------------------------
+    # Set a key frame at a given frame
+    
     # Shortcut for keyframes
-    def kf_set(self, name, value, frame, index=-1):
-        curr = getattr(self.obj, name)
-        setattr(self.obj, name, value)
-        self.obj.keyframe_insert(name, index=index, frame=frame)
-        setattr(self.obj, name, curr)
+    def kf_insert(self, name, frame, value):
+        blender.kf_insert(self.obj, name, frame, value)
         
-    def kf_anime(self, name, value0, frame0, value1, frame1, interpolation='LINEAR', index=-1):
-        curr = getattr(self.obj, name)
-        
-        setattr(self.obj, name, value0)
-        self.obj.keyframe_insert(name, index=index, frame=frame0)
-        
-        setattr(self.obj, name, value1)
-        self.obj.keyframe_insert(name, index=index, frame=frame1)
-        
-        setattr(self.obj, name, curr)
+    def kf_interval(self, name, frame0, frame1, value0, value1, interpolation='LINEAR'):
+        blender.kf_interval(self.obj, name, frame0, frame1, value0, value1, interpolation)
     
     
 # *****************************************************************************************************************************

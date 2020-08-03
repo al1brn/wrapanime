@@ -935,7 +935,7 @@ class MeshBuilder():
     # Rotation
     # =============================================================================
 
-    def rotate(self, axis=(0., 0., 1.), angle=0.):
+    def rotate(self, verts=None, axis=(0., 0., 1.), angle=0.):
         """Rotate the mesh around an axis of a given angle.
 
         Parameters
@@ -946,11 +946,15 @@ class MeshBuilder():
             The angle to turn
         """
         
+        if verts is None:
+            verts = np.arange(len(self.verts._array))
+            
+        
         q = Quaternion(wgeo.get_axis(axis), angle)
         
         # Need inverted matrix for np.matmul 
         Mi = q.to_matrix().inverted()
-        self.verts._array = np.matmul(self.verts._array, Mi)
+        self.verts._array[verts] = np.matmul(self.verts._array[verts], Mi)
 
     # =============================================================================
     # scale
@@ -1010,7 +1014,7 @@ class MeshBuilder():
 
         # Length of each side of the face
         # Note that if n == 2, there is no loop
-        u_len = np.array([(VX[(i+1)%n]-VX[i]).length for i in range(n)])
+        u_len = np.array([len(VX[(i+1)%n]-VX[i]) for i in range(n)], np.float)
 
         # The total length must match the x amplitude
         L = sum(u_len)
@@ -1204,7 +1208,8 @@ class MeshBuilder():
         # Close the extrusion
 
         if close:
-            self.link_with_faces([lines[i][-1] for i in range(n)], verts, u_bounds=u_bounds, v_bounds=[v_bounds[1]-dy, v_bounds[1]])
+            #self.link_with_faces([lines[i][-1] for i in range(n)], verts, u_bounds=u_bounds, v_bounds=[v_bounds[1]-dy, v_bounds[1]])
+            self.face([lines[i][-1] for i in range(n)])
 
         # ---------------------------------------------------------------------------
         # Return lines and faces

@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 
 #from wrapanime.utils import WrapException
 
-
 # =============================================================================================================================
 # Useful constants
 
@@ -138,7 +137,7 @@ def f_bounce(t, a, xi, di, ci):
 
 
 # =============================================================================================================================
-#
+# Interpolation
 
 class Interpolation():
     """Interpolation function from an interval towards another interval.
@@ -161,6 +160,8 @@ class Interpolation():
         A valid code for easing mode in [AUTO', 'EASE_IN', 'EASE_OUT', 'EASE_IN_OUT'
     """
     
+    RESOL  = 0.01
+    
     EASINGS = ['AUTO', 'EASE_IN', 'EASE_OUT', 'EASE_IN_OUT']
     
     INTERPS = {
@@ -181,10 +182,13 @@ class Interpolation():
 
     def __init__(self, x0=0., x1=1., y0=0., y1=1., interpolation='BEZIER', easing='AUTO'):
         
-        self.x0             = x0
-        self.Dx             = x1-x0   # delta x
-        self.y0             = y0      # 
-        self.Dy             = y1-y0   # delta y
+        x1 = max(x0+self.RESOL, x1)
+        Dx3 = (x1-x0)/3
+        self._bpoints   = np.array(((x0, y0), (x0+Dx3, y0), (x1-Dx3, y1), (x1, y1)))
+        
+        # The control points can be managed by the curve
+        self.curve        = None
+        self.curve_index  = None
         
         # Specific Parameters 
         self.amplitude = 0.
@@ -201,10 +205,121 @@ class Interpolation():
         self.easing         = easing
         
     # ---------------------------------------------------------------------------
+    # Bezier points
+        
+    @property
+    def bpoints(self):
+        if self.curve is None:
+            return self._bpoints
+        else:
+            return self.curve.bpoints[self.curve_index: self.curve_index + 4]
+        
+    @bpoints.setter
+    def bpoints(self, value):
+        if self.curve is None:
+            self._bpoints = value
+        else:
+            self.curve.bpoints[self.curve_index:self.curve_index + 4] = value
+            
+    def capture_bpoints(self, curve, index):
+        curve.bpoints[index:index + 4] = self._bpoints
+        self.curve       = curve
+        self.curve_index = index
+
+    # ---------------------------------------------------------------------------
+    # Amplitudes
+        
+    @property
+    def x0(self):
+        return self.bpoints[0, 0]
+    
+    @x0.setter
+    def x0(self, value):
+        dx = value - self.x0
+        self.bpoints[:, 0] += dx
+
+    @property
+    def y0(self):
+        return self.bpoints[0, 1]
+        
+    @y0.setter
+    def y0(self, value):
+        dy = value - self.y0
+        self.bpoints[:, 1] += dy
+
+    @property
+    def x1(self):
+        return self.bpoints[3, 0]
+
+    @x1.setter
+    def x1(self, value):
+        self.delta = value - self.x0
+
+    @property
+    def y1(self):
+        return self.bpoints[3, 1]
+
+    @y1.setter
+    def y1(self, value):
+        dy = value - self.y1
+        self.bpoints[2:, 1] += dy
+    
+    @property
+    def delta(self):
+        return self.bpoints[3, 0] - self.bpoints[0, 0]
+    
+    @delta.setter
+    def delta(self, value):
+        v = max(self.RESOL, value)
+        a = (self.bpoints[1:, 0] - self.bpoints[0, 0]) * v / self.delta
+        self.bpoints[1:, 0] = a
+        
+    @property
+    def y_delta(self):
+        return self.bpoints[3, 1] - self.bpoints[0, 1]
+        
+    # ---------------------------------------------------------------------------
+    # Bezier points 
+        
+    @property
+    def P0(self):
+        return self.bpoints[0]
+    
+    @property
+    def P1(self):
+        return self.bpoints[1]
+    
+    @property
+    def P2(self):
+        return self.bpoints[2]
+    
+    @property
+    def P3(self):
+        return self.bpoints[3]
+        
+    @P0.setter
+    def P0(self, value):
+        self.x0 = value[0]
+        self.y0 = value[1]
+
+    @P1.setter
+    def P1(self, value):
+        self.bpoints[1] = (max(self.x0, value[0]), value[1])
+
+    @P2.setter
+    def P2(self, value):
+        self.bpoints[2] = (min(self.x1, value[0]), value[1])
+    
+    @P3.setter
+    def P3(self, value):
+        self.x1 = value[0]
+        self.y1 = value[1]
+        
+    # ---------------------------------------------------------------------------
     # A user friendly representation
         
     def __repr__(self):
-        return f"Easing({self.interpolation}) [{self.x0:.2f} {self.x0+self.Dx:.2f}] -> [{self.y0:.2f} {self.y0+self.Dy:.2f}]"
+        return f"Easing({self.interpolation}) [{self.x0:.2f} {self.x1:.2f}] -> [{self.y0:.2f} {self.y1:.2f}]"
 
     # ---------------------------------------------------------------------------
     # Initialize from two Blender KeyFrame points
@@ -237,7 +352,8 @@ class Interpolation():
     @classmethod
     def Bezier(cls, x0=0., x1=1, y0=0., y1=1., easing='AUTO', P1=(1/3, 0.), P2=(2/3, 1.)):
         interp = Interpolation(x0, x1, y0, y1, 'BEZIER', easing)
-        interp.init_bezier(P1, P2)
+        interp.P1 = P1
+        interp.P2 = P2
         return interp
     
     @classmethod
@@ -304,11 +420,7 @@ class Interpolation():
         self._auto     = self.INTERPS[value]['auto']
         self._tangents = self.INTERPS[value]['tangents']
         
-        
         self.comp_bounces()
-        
-        # bezier points
-        self.init_bezier()
         
     # ---------------------------------------------------------------------------
     # Easing property
@@ -345,21 +457,7 @@ class Interpolation():
         else:
             return self._canonic(t)
         
-    # ---------------------------------------------------------------------------
-    # Bezier points initialization
-        
-    def init_bezier(self, P1=(1/3, 0.), P2=(2/3, 1.)):
-        self.P1 = P1
-        self.P2 = P2
-        
-    @property
-    def P0(self):
-        return np.array((self.x0, self.y0))
-    
-    @property
-    def P3(self):
-        return np.array((self.x0 + self.Dx, self.y0 + self.Dy))
-        
+
     # ---------------------------------------------------------------------------
     # Initialization specific to bounces
         
@@ -475,7 +573,7 @@ class Interpolation():
             xs = np.array([xs])
             
         # Normalized the abscissa between 0 and 1
-        ts = (xs - self.x0)/self.Dx
+        ts = (xs - self.x0)/self.delta
         
         single = len(ts.shape) == 0
         if single:
@@ -492,7 +590,7 @@ class Interpolation():
             ys = np.empty_like(ts)
             
             ys[i_inf] = self.y0
-            ys[i_sup] = self.y0 + self.Dy
+            ys[i_sup] = self.y1
             
             idx = np.delete(idx, np.concatenate((i_inf, i_sup)))
             
@@ -507,10 +605,10 @@ class Interpolation():
             mode = self.easing_mode
     
             if mode == 'EASE_IN':
-                vals = self.y0 + self.Dy*self.canonic(t)
+                vals = self.y0 + self.y_delta*self.canonic(t)
             
             elif mode == 'EASE_OUT':
-                vals = self.y0 + self.Dy*(1-self.canonic(1-t))
+                vals = self.y0 + self.y_delta*(1-self.canonic(1-t))
             
             else:
                 t *= 2
@@ -524,13 +622,13 @@ class Interpolation():
                     y[inf] = self.canonic(t[inf])/2
                     y[sup] = 1 - self.canonic(2-t[sup])/2
                     
-                    vals = self.y0 + self.Dy*y
+                    vals = self.y0 + self.y_delta*y
                 
                 else:
                     if t <= 1:
-                        vals = self.y0 + self.Dy*self.canonic(t)/2
+                        vals = self.y0 + self.y_delta*self.canonic(t)/2
                     else:
-                        vals = self.y0 + self.Dy*(1 - self.canonic(2-t))/2
+                        vals = self.y0 + self.y_delta*(1 - self.canonic(2-t))/2
                     
         # The results
         if outside:
@@ -543,17 +641,6 @@ class Interpolation():
             return ys[0]
         else:
             return ys
-                
-    # ---------------------------------------------------------------------------
-    # Interval
-        
-    @property
-    def x1(self):
-        return self.x0 + self.Dx
-    
-    @property
-    def y1(self):
-        return self.y0 + self.Dy
     
     # ---------------------------------------------------------------------------
     # Tangents
@@ -561,14 +648,14 @@ class Interpolation():
     @property
     def left_tangent(self):
         if self.interpolation == 'BEZIER':
-            dx = self.P1[0] - self.x0
-            dy = self.P1[1] - self.y0
-            if abs(dx) < 1e-6:
+            dx = self.bpoints[1, 0] - self.bpoints[0, 0]
+            dy = self.bpoints[1, 1] - self.bpoints[0, 1]
+            if abs(dx) < zero:
                 return 0.
             else:
                 return dy/dx
         else:
-            tg = self.Dy/self.Dx
+            tg = self.y_delta/self.delta
             
             mode = self.easing_mode
             
@@ -584,14 +671,14 @@ class Interpolation():
     @property
     def right_tangent(self):
         if self.interpolation == 'BEZIER':
-            dx = self.x1 - self.P2[0]
-            dy = self.y1 - self.P2[1]
-            if abs(dx) < 1e-6:
+            dx = self.bpoints[3, 0] - self.bpoints[2, 0]
+            dy = self.bpoints[3, 1] - self.bpoints[2, 1]
+            if abs(dx) < zero:
                 return 0.
             else:
                 return dy/dx
         else:
-            tg = self.Dy/self.Dx
+            tg = self.y_delta/self.delta
             
             mode = self.easing_mode
             
@@ -610,7 +697,7 @@ class Interpolation():
     def _plot(self, count=100, margin=0., fcomp=None):
         
         x0 = self.x0
-        x1 = self.x0 + self.Dx
+        x1 = self.x1
         amp = x1-x0
         
         x0 -= margin*amp
@@ -666,7 +753,8 @@ class WFCurve():
     
     def __init__(self):
         self.interpolations = []
-        self.extrapolation = 'CONSTANT'
+        self.extrapolation  = 'CONSTANT'
+        self.bpoints        = None
         
     def __repr__(self):
         s = ""
@@ -689,6 +777,8 @@ class WFCurve():
             kf1 = fcurve.keyframe_points[i+1]
             wfc.append(Interpolation.FromKFPoints(kf0, kf1))
             
+        wfc.capture_bpoints()
+            
         return wfc
     
     # ---------------------------------------------------------------------------
@@ -702,17 +792,49 @@ class WFCurve():
 
     def __setitem__(self, index, value):
         self.interpolations[index] = value
+        
+    # ---------------------------------------------------------------------------
+    # Capture the control of the bezier points from the interpolations
+        
+    def capture_bpoints(self):
+        if self.bpoints is not None:
+            return
+        
+        self.bpoints = np.zeros( ((len(self)+1)*3, 2), np.float)
+        for i in range(len(self)):
+            self.interpolations[i].capture_bpoints(self, 1 + i*3)
+            
+    # ---------------------------------------------------------------------------
+    # Adjust the size of the bpoints array
+            
+    def adjust_bpoints(self, length):
+        target = ((length-1)//10 + 1) * 10
+        size = (1+target)*3
+        if self.bpoints is not None:
+            if len(self.bpoints) >= size:
+                return
+            
+        if self.bpoints is None:
+            self.bpoints = np.zeros((size, 2), np.float)
+        else:
+            self.bpoints = np.resize(self.bpoints, (size, 2))
+        
+    def interp_index(self, index):
+        return 1 + index*3
     
     # ---------------------------------------------------------------------------
     # Append a new interpolation
     
     def append(self, interp):
         
+        self.adjust_bpoints(len(self)+1)
+        
         if len(self) == 0:
             self.interpolations = [interp]
+            interp.capture_bpoints(self, 1)
             return interp
         
-        if abs(interp.x0 - self.x1) > zero:
+        if abs(interp.x0 - self.x1) > Interpolation.RESOL:
             raise WrapException(
                 "WFCurve append error: the x0 of a new interpolation must equal the x1 to the last one.",
                 f"WFCurve: {self}",
@@ -724,6 +846,8 @@ class WFCurve():
         interp.y0 = self.y1
         self.interpolations.append(interp)
         
+        interp.capture_bpoints(self, self.interp_index(len(self)-1))
+        
         return interp
     
         
@@ -732,32 +856,36 @@ class WFCurve():
         """Starting x value of the function."""
         if len(self) == 0:
             return 0.
-        return self[0].x0
+        return self.bpoints[1, 0]
+        #return self[0].x0
     
     @property
     def x1(self):
         """Ending x value of the function."""
         if len(self) == 0:
             return 1.
-        return self[-1].x1
+        return self.bpoints[self.interp_index(len(self)), 0]
+        #return self[-1].x1
     
     @property
     def y0(self):
         """Starting y value of the function."""
         if len(self) == 0:
             return 0.
-        return self[0].y0
+        return self.bpoints[1, 1]
+        #return self[0].y0
     
     @property
     def y1(self):
         """Ending y value of the function."""
         if len(self) == 0:
             return 1.
-        return self[-1].y1
+        return self.bpoints[self.interp_index(len(self)), 1]
+        #return self[-1].y1
     
     @property
     def deltas(self):
-        return np.array([itp.Dx for itp in self.interpolations])
+        return np.array([itp.delta for itp in self.interpolations])
     
     @property
     def x0s(self):
@@ -788,7 +916,7 @@ class WFCurve():
                 return self.y1 + (x-self.x1)*self[-1].right_tangent
             
             for interp in self.interpolations:
-                if interp.x0 + interp.Dx >= x:
+                if interp.x0 + interp.delta >= x:
                     return interp(x)
                 
         # ---------------------------------------------------------------------------
@@ -857,6 +985,26 @@ class WFCurve():
         return ys
     
     # ====================================================================================================
+    # Some changes
+    
+    def scale(self, scale):
+        sc = np.array(scale)
+        if len(sc.shape) == 0:
+            scx = scale
+            scy = 1.
+        else:
+            scx = scale[0]
+            scy = scale[1]
+            
+        
+        a = self.bpoints[2:] - self.bpoints[1]
+        a[:, 0] *= scx
+        a[:, 1] *= scy
+        
+        self.bpoints[2:] = self.bpoints[1] + a
+    
+    
+    # ====================================================================================================
     # Call
     
     def _plot(self, count=100, margin=0., fcomp=None):
@@ -908,8 +1056,12 @@ def test_c(count=10):
         
     print(wfc)
     wfc._plot(count=1000)
+    wfc.scale((0.5, 2))
+    wfc._plot(count=1000)
+    
+    
 
-test_c()
+#test_c()
         
         
     

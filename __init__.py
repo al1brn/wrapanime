@@ -18,6 +18,7 @@ clean_path(wapath)
 clean_path(waparent)
 
 sys.path.append(waparent)
+
     
 # =============================================================================================================================
 # Declare the useful objects
@@ -49,4 +50,9 @@ WMeshObject     = wrappers.WMeshObject
 WCurveObject    = wrappers.WCurveObject
 
 Duplicator      = duplicator.Duplicator
+
+wrap_collection   = blender.wrap_collection
+hidden_collection = blender.hidden_collection
+get_collection    = blender.get_collection
+
 

@@ -69,12 +69,13 @@ def link_object(obj, collection=None):
     return obj
 
 def wrap_collection(name=None):
-    
     if name is None:
         return get_collection("WrapAnime", create=True)
     
     return create_collection(name, parent_name="WrapAnime")
 
+def hidden_collection():
+    return wrap_collection("Hidden")
 
 # *****************************************************************************************************************************
 # *****************************************************************************************************************************
@@ -380,6 +381,236 @@ def set_material(obj, material_name):
 
     return mat
 
+
+# *****************************************************************************************************************************
+# *****************************************************************************************************************************
+# Key frames mamangement
         
+# ----------------------------------------------------------------------------------------------------
+# Key frame animation
+    
+def is_animated(obj):
+    return obj.animation_data is not None
+    
+def animation_data(obj, create=True):
+    animation = obj.animation_data
+    if create and (animation is None):
+        return obj.animation_data_create()
+    else:
+        return animation
+    
+def animation_action(obj, create=True):
+    animation = animation_data(obj, create)
+    if animation is None:
+        return None
+    
+    action = animation.action
+    if create and (action is None):
+        animation.action = bpy.data.actions.new(name="WA action")
+    
+    return animation.action
+
+def get_fcurves(obj):
+    return animation_action(obj, True).fcurves
+
+def is_fcurve_of(fcurve, name, index=0):
+    if fcurve.data_path == name:
+        if fcurve.array_index < 0:
+            return True
+        return fcurve.array_index == index
+    
+    return False
+
+def name_to_path_index(obj, name):
+    """Transform a user name in blender (data_path, array_index) couple.
+    
+    Parameters
+    ----------
+    obj: Blender datablock
+        A blender datablock
         
+    name: str
+        An extended data_path string.
+        - 'y' and 'location.y' are interpreted as ('location', 1)
+        - 'data.attr' is interpretated as ('attr', 0) for data property 
+        
+    Returns
+    -------
+    triplet (object, data_path, array_index)
+    """
+    
+    indices = ['x', 'y', 'z', 'w']
+    
+    dic = {
+        'x' : ('location',       0), 'y' : ('location',       1), 'z' : ('location',       2), 
+        'sx': ('scale',          0), 'sy': ('scale',          1), 'sz': ('scale',          2), 
+        'rx': ('rotation_euler', 0), 'ry': ('rotation_euler', 1), 'rz': ('rotation_euler', 2), 
+        }
+    
+    index = 0
+    parts = name.split('.')
+    
+    try:
+        n, index = dic[parts[-1]]
+        parts[-1] = n
+        if len(parts) > 1:
+            if parts[-1] == parts[-2]:
+                parts = parts[:-1]
+    except:
+        pass
+        
+    ob = obj
+        
+    for i in range(len(parts)-1):
+        try:
+            ob = getattr(ob, parts[i])
+        except:
+            raise WrapException(
+                f"Incorrect animation path: '{name}' is not valid for {obj}"
+                )
+            
+    print("DATA PATH", name, ">>>>", obj, parts[-1], index)
+            
+    return ob, parts[-1], index
+
+# ----------------------------------------------------------------------------------------------------
+# Access to an animation curve
+    
+def get_fcurve(obj, name, index=None):
+    
+    if index is None:
+        obj, name, index = name_to_path_index(obj, name)
+    
+    fcurves = get_fcurves(obj)
+    if fcurves is None:
+        return None
+    
+    for curve in fcurves:
+        if is_fcurve_of(curve, name, index):
+            return curve
+            
+    return None
+
+# ----------------------------------------------------------------------------------------------------
+# Get a keyframe at a fiven frame
+    
+def get_keyframe(obj, name, frame, index=None):
+    
+    if index is None:
+        obj, name, index = name_to_path_index(obj, name)
+        
+    curve = get_fcurve(obj, name, index)
+    for kf in curve.keyframe_points:
+        if kf.co[0]==frame:
+            return kf
+        
+    return None
+    
+
+# ----------------------------------------------------------------------------------------------------
+# Create and animation curve
+
+def new_curve(obj, name, index=None):
+    
+    if index is None:
+        obj, name, index = name_to_path_index(obj, name)
+    
+    curve = get_fcurve(obj, name, index)
+
+    if curve is None:
+        fcurves = get_fcurves(obj)
+        curve = fcurves.new(data_path=name, index=index)
+
+    return curve
+
+# ----------------------------------------------------------------------------------------------------
+# Delete keyframes
+
+def kf_delete(obj, name, frame0=None, frame1=None, index=None):
+    
+    if index is None:
+        obj, name, index = name_to_path_index(obj, name)
+    
+    curve = get_fcurve(obj, name, index)
+    if curve is None:
+        return
+    
+    kfs = []
+    for kf in curve.keyframe_points:
+        ok = True
+        if frame0 is not None:
+            ok = kf.co[0] >= frame0
+        if frame1 is not None:
+            if kf.co[0] > frame1:
+                ok = False
+        if ok:
+            kfs.append(kf)
+    
+    for kf in kfs:
+        try:
+            curve.keyframe_points.remove(kf)
+        except:
+            pass
+        
+# ----------------------------------------------------------------------------------------------------
+# Insert a key frame
+        
+def kf_insert(obj, name, frame, value, index=None):
+    
+    if index is None:
+        obj, name, index = name_to_path_index(obj, name)
+    
+    curr = getattr(obj, name)
+    try:
+        v = curr.copy()
+        v[index] = value
+    except:
+        v = value
+    setattr(obj, name, v)
+    obj.keyframe_insert(name, index=index, frame=frame)
+    setattr(obj, name, curr)
+
+# ----------------------------------------------------------------------------------------------------
+# Animation on an interval
+    
+def kf_interval(obj, name, frame0, frame1, value0, value1, interpolation='LINEAR', index=None):
+    
+    if index is None:
+        obj, name, index = name_to_path_index(obj, name)
+
+    kf_delete(obj, name, frame0, frame1, index)
+    
+    curr = getattr(obj, name)
+    
+    try:
+        v = curr.copy()
+        v[index] = value0
+    except:
+        v = value0
+    
+    setattr(obj, name, v)
+    obj.keyframe_insert(name, index=index, frame=frame0)
+    
+    
+    try:
+        v[index] = value1
+    except:
+        v = value1
+    
+    setattr(obj, name, v)
+    obj.keyframe_insert(name, index=index, frame=frame1)
+    
+    setattr(obj, name, curr)
+    
+    kf = get_keyframe(obj, name, frame0, index)
+    kf.interpolation = interpolation
+    
+    
+    
+    
+    
+
+        
+
+    
 
