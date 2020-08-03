@@ -508,33 +508,6 @@ class MeshBuilder():
         # Create the new geometry
         mesh.from_pydata(self.verts.array, [], self.faces)
         
-        # OLD algorithm
-        if False:
-
-            # Add the vertices
-            verts = [x for V in self.verts for x in V]
-            mesh.vertices.add(len(self.verts))
-            mesh.vertices.foreach_set("co", verts)
-    
-            # No edge in this implementation
-            #mesh.edges.add(num_edges)
-            #mesh.edges.foreach_set("vertices", edges)
-    
-            # Loops
-            verts_indices = [index for face in self.faces for index in face]
-            loop_totals   = [len(face) for face in self.faces]
-            loop_starts   = [0 for i in range(len(self.faces))]
-            for i in range(1, len(self.faces)):
-                loop_starts[i] = loop_starts[i-1] + loop_totals[i-1]
-    
-            mesh.loops.add(len(verts_indices))
-            mesh.loops.foreach_set("vertex_index", verts_indices)
-    
-            # Polygons
-            mesh.polygons.add(len(self.faces))
-            mesh.polygons.foreach_set("loop_start", loop_starts)
-            mesh.polygons.foreach_set("loop_total", loop_totals)
-        
         # Create UV coordinate layer and set values
         # Only if their exists not None uvs
         none_uvs = self.uvs.count(None)
@@ -618,7 +591,7 @@ class MeshBuilder():
     # Create the object
     # =============================================================================
 
-    def create_object(self, name="Special", update_if_exist=True, remove_doubles=None):
+    def create_object(self, name="Special", collection=None, update_if_exist=True, remove_doubles=None):
         """Create the blender object.
 
         Parameters
@@ -633,6 +606,18 @@ class MeshBuilder():
         Object
             The created Blender object
         """
+        
+        if update_if_exist:
+            obj = wbl.getcreate_object(name, create='MESH', collection=collection)
+        else:
+            obj = wbl.create_object(name, create='MESH', collection=collection)
+            
+        self.update_object(obj)
+        return obj
+
+            
+        
+        
         
         # Update if exist and authorized
         if update_if_exist:
@@ -778,16 +763,20 @@ class MeshBuilder():
         ags = np.arange(count)*dag
         verts = radius*np.stack((np.cos(ags), np.sin(ags), np.zeros(count))).transpose()
         
-        # Required to be perpendicular to axis
-        axis = wgeo.get_axis(axis)
-        Z = Vector((0, 0, 1))
-        angle = axis.angle(Z)
-        if abs(angle) > 0.001:
-            P = Z.cross(axis)
-            q = Quaternion(P, angle)
+        if axis != 'Z':
+            verts = wgeo.rotate_towards(verts, axis)
             
-            Mi = q.to_matrix().inverted()
-            verts = np.matmul(verts, Mi)
+        if False:
+            # Required to be perpendicular to axis
+            axis = wgeo.get_axis(axis)
+            Z = Vector((0, 0, 1))
+            angle = axis.angle(Z)
+            if abs(angle) > 0.001:
+                P = Z.cross(axis)
+                q = Quaternion(P, angle)
+    
+                Mi = q.to_matrix().inverted()
+                verts = np.matmul(verts, Mi)
             
         # Add the vertices
         return self.add_verts(verts)
@@ -1057,7 +1046,7 @@ class MeshBuilder():
         
         faces = []
         n = len(loop)
-        for i in range(n-1):
+        for i in range(n):
             faces.append(self.face([loop[i], loop[(i+1)%n], topv]))
         return faces
 

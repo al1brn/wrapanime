@@ -11,7 +11,7 @@ import itertools
 import numpy as np
 
 import bpy
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 
 from wrapanime.utils import blender
 
@@ -231,6 +231,10 @@ class Wrapper():
     def __init__(self, obj, wowner=None):
         self.obj    = obj
         self.wowner = wowner
+        self.wrapper_init()
+        
+    def wrapper_init(self):
+        pass
         
     def __repr__(self):
         if hasattr(self.obj, 'name'):
@@ -371,9 +375,9 @@ class WObjectRoot(Wrapper):
     @quaternion.setter
     def quaternion(self, value):
         if self.rotation_mode == 'QUATERNION':
-            self.rotation_quaternion = value
+            self.rotation_quaternion = Quaternion(value)
         else:
-            self.rotation_euler = value.to_euler(self.rotation_euler.order)
+            self.rotation_euler = Quaternion(value).to_euler(self.rotation_euler.order)
 
     @property
     def hide(self):
@@ -387,16 +391,25 @@ class WObjectRoot(Wrapper):
     # transformation
 
     def orient(self, axis):
-        self.quaternion = geo.tracker_quaternion(self.track_axis, axis, up=self.up_axis)
+        self.quaternion = geo.q_tracker(self.track_axis, axis, up=self.up_axis)
 
     def track_to(self, location):
-        self.quaternion = geo.tracker_quaternion(self.track_axis, Vector(location)-self.location, up=self.up_axis)
+        q = geo.q_tracker(self.track_axis, Vector(location)-self.location, up=self.up_axis)
+        #print("TRACK_TO", geo._str(q, 1, 'quat'))
+        self.quaternion = q
 
     # Distance
 
     def distance(self, location):
         return (Vector(location)-self.location).length       
 
+
+# =============================================================================================================================
+# Mesh root
+        
+class WMeshRoot(Wrapper):
+    pass
+            
 
 # =============================================================================================================================
 # Spline

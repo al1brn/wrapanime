@@ -2,8 +2,7 @@ import itertools
 from math import pi, degrees, radians
 import numpy as np
 
-#import wrapanime
-#from wrapanime.utils.errors import WrapException
+from wrapanime.utils.errors import WrapException
 
 # Default ndarray float type
 ftype = np.float
@@ -46,12 +45,12 @@ def get_axis(straxis, default=(0, 0, 1)):
     # Axis by str
     if hasstr:
         
-        pxs = np.where(axis == 'X')[0]
-        pys = np.where(axis == 'Y')[0]
-        pzs = np.where(axis == 'Z')[0]
-        nxs = np.where(axis == '-X')[0]
-        nys = np.where(axis == '-Y')[0]
-        nzs = np.where(axis == '-Z')[0]
+        pxs = np.concatenate((np.where(axis ==  'X')[0], np.where(axis == 'POS_X')[0]))
+        pys = np.concatenate((np.where(axis ==  'Y')[0], np.where(axis == 'POS_Y')[0]))
+        pzs = np.concatenate((np.where(axis ==  'Z')[0], np.where(axis == 'POS_Z')[0]))
+        nxs = np.concatenate((np.where(axis == '-X')[0], np.where(axis == 'NEG_X')[0]))
+        nys = np.concatenate((np.where(axis == '-Y')[0], np.where(axis == 'NEG_Y')[0]))
+        nzs = np.concatenate((np.where(axis == '-Z')[0], np.where(axis == 'NEG_Z')[0]))
         
         As[pxs] = [ 1,  0,  0]
         As[pys] = [ 0,  1,  0]
@@ -61,7 +60,7 @@ def get_axis(straxis, default=(0, 0, 1)):
         As[nys] = [ 0, -1,  0]
         As[nzs] = [ 0,  0, -1]
         
-        rem = np.delete(rem, np.concatenate(pxs, pys, pzs, nxs, nys, nzs))
+        rem = np.delete(rem, np.concatenate((pxs, pys, pzs, nxs, nys, nzs)))
         
         with_chars = True
         
@@ -452,7 +451,7 @@ def m_mul(ma, mb):
     return np.matmul(mas, mbs)
 
 # -----------------------------------------------------------------------------------------------------------------------------
-# Dot product between amtrices and vectors
+# Dot product between matrices and vectors
     
 def m_rotate(m, v):
     """Vector rotation by a matrix.
@@ -821,7 +820,7 @@ def quaternion(axis, angle):
 # -----------------------------------------------------------------------------------------------------------------------------
 # Quaterions to axis and angles
     
-def axis_angle(q):
+def axis_angle(q, combine=False):
     """Return the axis and angles components of a quaternion.
     
     Parameters
@@ -844,6 +843,7 @@ def axis_angle(q):
             )
         
     if len(qs.shape) == 1:
+        count = 1
         sn  = norm(qs[1:4])
         if sn < zero:
             axs = np.array((0, 0, 1), ftype)
@@ -852,6 +852,7 @@ def axis_angle(q):
             axs = qs[1:4] / sn
             ags = 2*np.arccos(np.maximum(-1, np.minimum(1, qs[0])))
     else:
+        count = len(qs)
         sn  = norm(qs[:, 1:4])
         zs  = np.where(sn < 0)[0]
         nzs = np.delete(np.arange(len(sn)), zs)
@@ -863,8 +864,13 @@ def axis_angle(q):
         if len(nzs) > 0:
             axs[nzs] = qs[nzs, 1:4] / np.resize(sn[nzs], (3, len(sn))).transpose()
             ags[nzs] = 2*np.arccos(np.maximum(-1, np.minimum(1, qs[nzs, 0])))
-    
-    return axs, ags
+            
+    if combine:
+        r = np.resize(ax, (4, count)).transpose()
+        r[:, 3] = ags
+        return r
+    else:
+        return axs, ags
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Quaternion conjugate
@@ -1133,7 +1139,7 @@ def q_to_matrix(q):
 # Conversion quaternion --> euler
     
 def q_to_euler(q, order='XYZ'):
-    return q_to_euler(q_to_matrix(q), order)
+    return m_to_euler(q_to_matrix(q), order)
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------------------------------------------------
@@ -1323,7 +1329,7 @@ def e_to_quat(e, order='XYZ'):
 # - up     : The up direction wich must remain oriented towards the sky
 # - sky    : The up direction must be rotated in the plane (target, sky)
 
-def q_tracker(axis, target, up='Y', sky='Z', no_up = False):
+def q_tracker(axis, target, up='Y', sky='Z', no_up = True):
     """Work in progress"""
     
     axs = get_axis(axis)       # Vectors to rotate
@@ -1335,9 +1341,9 @@ def q_tracker(axis, target, up='Y', sky='Z', no_up = False):
     
     single_axis   = len(axs.shape) == 1
     single_target = len(txs.shape) == 1
-    a_count        = 1 if single_axis   else len(axs)
-    t_count        = 1 if single_target else len(txs)
-    count = max(a_count, t_count)
+    a_count       = 1 if single_axis   else len(axs)
+    t_count       = 1 if single_target else len(txs)
+    count         = max(a_count, t_count)
     
     if not ( (a_count in [1, count]) and (t_count in [1, count]) ):
         raise WrapException(
@@ -1361,6 +1367,15 @@ def q_tracker(axis, target, up='Y', sky='Z', no_up = False):
     vrot = cross(axs, txs)  # Perp vector with norm == sine
     crot = dot(axs, txs)    # Dot products = cosine
     qrot = quaternion(vrot, np.arccos(np.maximum(-1, np.minimum(1, crot))))
+    
+    
+    # DEBUG
+    if False:
+        print(f"axis:   ", _str(axs, 1))
+        print(f"target: ", _str(txs, 1))
+        print(f"vrot:   ", _str(vrot, 1))
+        print(f"qrot:   ", _str(qrot, 1, 'quat'))
+        return qrot[0]
     
     # Particular cases = axis and target are aligned
     sames = np.where(abs(crot - 1) < zero)[0]
@@ -1444,6 +1459,42 @@ def q_tracker(axis, target, up='Y', sky='Z', no_up = False):
     else:
         return qrot
     
+# -----------------------------------------------------------------------------------------------------------------------------
+# Rotate vertices around a pivot towards a direction
+        
+def rotate_towards(v, target, center=(0., 0., 0.), axis='Z', up='Y', no_up=False):
+    
+    # The rotation quaternion
+    q = q_tracker(axis, target, up, no_up=no_up)
+    
+    # Vertices and centers
+    vs = np.array(v, ftype)
+    cs = np.array(center, ftype)
+    
+    return q_rotate(q, vs-cs) + cs
+    
+
+# *****************************************************************************************************************************
+# Orienter (Build in progress)
+
+class Orienter():
+    def __init__(self, axis='Z', up='Y', up_direction='Z'):
+        self.axis   = get_axis(axis)
+        self.up     = get_axis(up)
+        self.up_dir = get_axis(up_direction)
+
+    def execute(self, target):
+        return tracker_quaternion(self.axis, target, up=self.up, up_direction= self.up_dir)
+
+    def track_to(self, item, location):
+        q = self.execute(Vector(location) - item.location)
+        item.quaternion=  q
+
+    def orient(self, item, vector):
+        q = self.execute(vector)
+        item.quaternion = q
+    
+    
     
     
 def test_tracker():
@@ -1501,34 +1552,8 @@ def test_tracker():
     print('-'*100)
     print()
         
-
 #test_tracker()
 
-# *****************************************************************************************************************************
-# A matrix to orient a figure drawn in XY plane perpendicular to an arbitrary axis
-        
-def XY_rotation(axis='Z', up='X'):
-    return tracker_quaternion('Z', target_axis=axis, up=up)
-
-# *****************************************************************************************************************************
-# Orienter (Build in progress)
-
-class Orienter():
-    def __init__(self, axis='Z', up='Y', up_direction='Z'):
-        self.axis   = get_axis(axis)
-        self.up     = get_axis(up)
-        self.up_dir = get_axis(up_direction)
-
-    def execute(self, target):
-        return tracker_quaternion(self.axis, target, up=self.up, up_direction= self.up_dir)
-
-    def track_to(self, item, location):
-        q = self.execute(Vector(location) - item.location)
-        item.quaternion=  q
-
-    def orient(self, item, vector):
-        q = self.execute(vector)
-        item.quaternion = q
 
 
 
@@ -2273,6 +2298,6 @@ def m_to_quat_test(count=30):
     return mess
 
 
-print(m_to_quat_test(30))
+#print(m_to_quat_test(30))
 
 

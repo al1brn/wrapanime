@@ -556,22 +556,6 @@ class Surface():
         dv = 1/i_count
         du = 1/j_count
         
-        """
-        if self.x_loop:
-            dv = 1./self.x_count
-            imax = self.x_count
-        else:
-            dv = 1./(self.x_count-1)
-            imax = self.x_count-1
-            
-        if self.y_loop:
-            du = 1./self.y_count
-            jmax = self.y_count
-        else:
-            du = 1./(self.y_count-1)
-            jmax = self.y_count-1
-        """
-        
         def uv_ij(i, j):
             return [du*j, dv*i]
         
@@ -588,18 +572,6 @@ class Surface():
         
         uvs = [uv(i,j) for i, j in itertools.product(range(i_count), range(j_count))]
         
-        if False:
-            index = 0
-            for i in range(i_count):
-                s = "< "
-                for j in range(j_count):
-                    s += "["
-                    for v in uvs[index]:
-                        s += f"({v[0]:5.2f} {v[1]:5.2f}) "
-                    s = s[:-1] + "] "
-                    index += 1
-                print(s + ">")
-            
         return uvs
             
                 

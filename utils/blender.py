@@ -22,9 +22,12 @@ def make_collection(collection_name, parent_collection):
         parent_collection.children.link(new_collection) # Add the new collection under a parent
         return new_collection
 
-def get_collection(coll):
+def get_collection(coll, create=True):
     if type(coll) is str:
-        return bpy.data.collections.get(coll)
+        c = bpy.data.collections.get(coll)
+        if (c is None) and create:
+            return create_collection(coll)
+        return c
     else:
         return coll
 
@@ -61,8 +64,17 @@ def link_object(obj, collection=None):
     if collection is None:
         bpy.context.collection.objects.link(obj)
     else:
-        collection.objects.link(obj)
+        get_collection(collection).objects.link(obj)
+        
     return obj
+
+def wrap_collection(name=None):
+    
+    if name is None:
+        return get_collection("WrapAnime", create=True)
+    
+    return create_collection(name, parent_name="WrapAnime")
+
 
 # *****************************************************************************************************************************
 # *****************************************************************************************************************************
@@ -165,13 +177,75 @@ def get_free_name(name, currents):
 # Update the view port after objects transformations
 
 def update_viewport():
-    bpy.ops.object.editmode_toggle()    
-    bpy.ops.object.editmode_toggle()    
+    try:
+        bpy.ops.object.editmode_toggle()
+        bpy.ops.object.editmode_toggle()
+    except:
+        pass
 
 
 # *****************************************************************************************************************************
 # *****************************************************************************************************************************
 # Utilitaires de gestion des objets
+    
+# -----------------------------------------------------------------------------------------------------------------------------
+# Create an object
+
+def create_object(name, what='CUBE', parent=None, collection=None, **kwargs):
+    
+    if what in ['MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'VOLUME', 'ARMATURE', 'LATTICE',
+                'EMPTY', 'GPENCIL', 'CAMERA', 'LIGHT', 'SPEAKER', 'LIGHT_PROBE']:
+        
+        bpy.ops.object.add(type=what, **kwargs)
+    
+    elif what == 'CIRCLE':
+        bpy.ops.mesh.primitive_circle_add(**kwargs)
+    elif what == 'CONE':
+        bpy.ops.mesh.primitive_cone_add(**kwargs)
+    elif what == 'CUBE':
+        bpy.ops.mesh.primitive_cube_add(**kwargs)
+    elif what == 'GIZMO_CUBE':
+        bpy.ops.mesh.primitive_cube_add_gizmo(**kwargs)
+    elif what == 'CYLINDER':
+        bpy.ops.mesh.primitive_cylinder_add(**kwargs)
+    elif what == 'GRID':
+        bpy.ops.mesh.primitive_grid_add(**kwargs)
+    elif what in ['ICOSPHERE', 'ICO_SPHERE']:
+        bpy.ops.mesh.primitive_ico_sphere_add(**kwargs)
+    elif what == 'MONKEY':
+        bpy.ops.mesh.primitive_monkey_add(**kwargs)
+    elif what == 'PLANE':
+        bpy.ops.mesh.primitive_plane_add(**kwargs)
+    elif what == 'TORUS':
+        bpy.ops.mesh.primitive_torus_add(**kwargs)
+    elif what in ['UVSPHERE', 'UV_SPHERE']:
+        bpy.ops.mesh.primitive_uv_sphere_add(**kwargs)
+        
+        
+    elif what in ['BEZIERCIRCLE', 'BEZIER_CIRCLE']:
+        bpy.ops.curve.primitive_bezier_circle_add(**kwargs)
+    elif what in ['BEZIERCURVE', 'BEZIER_CURVE']:
+        bpy.ops.curve.primitive_bezier_curve_add(**kwargs)
+    elif what in ['NURBSCIRCLE', 'NURBS_CIRCLE']:
+        bpy.ops.curve.primitive_nurbs_circle_add(**kwargs)
+    elif what in ['NURBSCURVE', 'NURBS_CURVE']:
+        bpy.ops.curve.primitive_nurbs_curve_add(**kwargs)
+    elif what in ['NURBSPATH', 'NURBS_PATH']:
+        bpy.ops.curve.primitive_nurbs_path_add(**kwargs)
+        
+    else:
+        raise WrapException(f"Invalid object creation name: '{what}' is not valid")
+        
+    obj             = bpy.context.active_object
+    obj.name        = name
+    obj.parent      = parent
+    obj.location    = bpy.context.scene.cursor.location
+    
+    if collection is not None:
+        bpy.ops.collection.objects_remove_all()
+        get_collection(collection).objects.link(obj)    
+
+    return obj
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Get an object by name of object itself
@@ -197,6 +271,19 @@ def get_object(obj_or_name, mandatory=True, otype=None):
                     f"The type of the Blender object '{obj.name}' is '{obj.type}."
                     )
     return obj
+
+# -----------------------------------------------------------------------------------------------------------------------------
+# Get an object and create it if it doesn't exist
+# if create is None -> no creation
+# For creation, the create argument must contain a valid object creation name
+    
+def getcreate_object(obj_or_name, create=None, collection=None, **kwargs):
+    
+    obj = get_object(obj_or_name, mandatory = create is None)
+    if obj is not None:
+        return obj
+    
+    return create_object(obj_or_name, what=create, parent=None, collection=collection, **kwargs)
 
 
 # -----------------------------------------------------------------------------------------------------------------------------
@@ -228,21 +315,6 @@ def duplicate_object(obj, collection=None, link=False):
     # ----- Done !
 
     return dupl
-
-# -----------------------------------------------------------------------------------------------------------------------------
-# Récupère un objet par son nom, le crée s'il n'existe pas
-# ATTENTION: Le mesh créé est vide
-
-def create_object(name, type='MESH', parent=None, collection=None):
-
-    bpy.ops.object.add(type=type)
-    obj             = bpy.context.active_object
-    obj.name        = name
-    obj.parent      = parent
-    obj.location    = bpy.context.scene.cursor.location
-    link_object(obj, collection)
-
-    return obj
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # Supprime un objet et ses enfants

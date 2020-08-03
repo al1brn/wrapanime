@@ -1827,7 +1827,7 @@ class BFunction():
     # Dichotomic algorithm
     
     def dicho_comp(self, index, x):
-        """Compute the Bezier value for agiven abscissa.
+        """Compute the Bezier value for a given abscissa.
         
         The x value is within the interval starting at the given index.
         

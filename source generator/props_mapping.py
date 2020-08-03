@@ -560,7 +560,7 @@ class PolygonGenerator(WrapperGenerator):
         
 class MeshGenerator(WrapperGenerator):
     def __init__(self):
-        super().__init__("Mesh")
+        super().__init__("Mesh", wrapper_root_class="WMeshRoot")
         
     def collprops_code(self):
         yield tab2 + "self.wvertices = WMeshVertices(self.obj.vertices, self)"
@@ -749,6 +749,42 @@ class ObjectGenerator(WrapperGenerator):
         yield MethodWrapper("track_to",  {"location": "V3"}, None,    None)
         yield MethodWrapper("distances", {"location": "V3"}, "float", "distance")
         
+
+
+# *****************************************************************************************************************************
+# Texture
+    
+class TextureGenerator(WrapperGenerator):
+    def __init__(self):
+        super().__init__("Texture", gen_coll = False)
+        
+    def props(self):
+        yield PropWrapper(name='cloud_type',          vtype='str',   prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='contrast',            vtype='float', prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='factor_blue',         vtype='float', prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='factor_green',        vtype='float', prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='factor_red',          vtype='float', prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='intensity',           vtype='float', prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='is_embedded_data',    vtype='bool',  prop=None, readonly=True,  shortcut=None, foreach=False)
+        yield PropWrapper(name='is_evaluated',        vtype='bool',  prop=None, readonly=True,  shortcut=None, foreach=False)
+        yield PropWrapper(name='is_library_indirect', vtype='bool',  prop=None, readonly=True,  shortcut=None, foreach=False)
+        yield PropWrapper(name='nabla',               vtype='float', prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='name',                vtype='str',   prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='name_full',           vtype='str',   prop=None, readonly=True,  shortcut=None, foreach=False)
+        yield PropWrapper(name='noise_basis',         vtype='str',   prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='noise_depth',         vtype='int',   prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='noise_scale',         vtype='float', prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='noise_type',          vtype='str',   prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='saturation',          vtype='float', prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='tag',                 vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='type',                vtype='str',   prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='use_clamp',           vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='use_color_ramp',      vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='use_fake_user',       vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='use_nodes',           vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
+        yield PropWrapper(name='use_preview_alpha',   vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=False)
+
+
 
 # *****************************************************************************************************************************
 # Keyframe

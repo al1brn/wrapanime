@@ -12,9 +12,11 @@ import bpy
 
 from wrapanime.utils.errors import WrapException
 from wrapanime.utils import blender as blender
-
 from wrapanime.utils import cy_object
 from wrapanime.utils import geometry as geo
+
+from wrapanime.mesh.surface import Surface
+
 import wrapanime.wrappers.root as root
 
 from wrapanime.wrappers.generated_wrappers import WObject, WMesh
@@ -62,6 +64,7 @@ class WMeshObject(WObject):
 
         super().__init__(obj)
         self.wmesh = WMesh(self.obj.data, self)
+        self.wmesh.blender_object = self.obj
 
         self._verts             = None
         self._verts_normals     = None
@@ -71,6 +74,9 @@ class WMeshObject(WObject):
         self._faces             = None
 
         self._edges             = None
+        
+        self._surface           = None
+        self.surface_sk         = None
 
     def erase_cache(self):
         super().erase_cache()
@@ -198,6 +204,188 @@ class WMeshObject(WObject):
             mesh = self.obj.data
             self._edges = [[self.verts[edge.vertices[0]], self.verts[edge.vertices[1]]] for edge in mesh.edges]
         return self._edges
+    
+    
+    @property
+    def object_name(self):
+        return self.blender_object.name
+        
+    # ----------------------------------------------------------------------------------------------------
+    # Shape keys
+    
+    @classmethod
+    def sk_name(cls, name, step=None):
+        return name if step is None else f"{name} {step:03d}"
+    
+    def get_sk(self, name, step=None, create=True):
+        
+        name = self.sk_name(name, step)
+        
+        mesh = self.obj.data
+        obj  = self.obj
+    
+        if mesh.shape_keys is None:
+            if create:
+                obj.shape_key_add(name=name)
+                mesh.shape_keys.use_relative = False
+            else:
+                return None
+        
+        # Does the shapekey exists?
+        res = mesh.shape_keys.key_blocks.get(name)
+        
+        # No !
+        if (res is None) and create:
+            
+            eval_time = mesh.shape_keys.eval_time 
+            
+            if step is not None:
+                # Ensure the value is correct
+                mesh.shape_keys.eval_time = step*10
+            
+            res = obj.shape_key_add(name=name)
+            
+            # Less impact as possible :-)
+            mesh.shape_keys.eval_time = eval_time
+            
+        return res
+
+    def sk_exists(self, name, step):
+        return self.get_sk(name, step, create=False) is not None
+
+    def on_sk(self, name, step=None):
+    
+        if not self.sk_exists(name, step):
+            raise WrapException(f"The shape key '{self.sk_name(name, step)}' doesn't exist in object '{self.obj.name}'!")
+            
+        mesh = self.obj.data
+    
+        mesh.shape_keys.eval_time = self.get_sk(name, step).frame
+        return mesh.shape_keys.eval_time
+
+    def delete_sk(self, name=None, step=None):
+        
+        if self.obj.data.shape_keys is None:
+            return
+        
+        if name is None:
+            self.obj.shape_key_clear()
+        else:
+            key = self.get_sk(name, step)
+            if key is not None:
+                self.obj.shape_key_remove(key)
+                
+
+    # ----------------------------------------------------------------------------------------------------
+    # Short cut to eval time
+    
+    @property
+    def eval_time(self):
+        mesh = self.obj.data
+        if mesh.shape_keys is None:
+            return 0.
+        else:
+            return mesh.shape_keys.eval_time 
+    
+    @eval_time.setter
+    def eval_time(self, value):
+        mesh = self.obj.data
+        if mesh.shape_keys is None:
+            raise WrapException(
+                f"WMeshObject eval_time error: no shape keys are defined for the object {self.obj.name}"
+                )
+        else:
+            mesh.shape_keys.eval_time = value
+                
+    # ----------------------------------------------------------------------------------------------------
+    # Surface computation
+        
+    @property
+    def surface(self):
+        return self._surface
+    
+    @surface.setter
+    def surface(self, value):
+        self._surface = value
+        if self._surface is not None:
+            self.surface_init()
+            
+    def set_function(self, func, coords='XYZ'):
+        
+        # If the shape key named "Basis" exists, initialize the vertices from this surface
+        basis = self.get_sk("Basis", create=True)
+        count = len(basis.data)
+        
+        verts = np.empty(count*3, np.float)
+        basis.data.foreach_get('co', verts)
+        
+        verts = verts.reshape(count, 3)
+        self.surface_sk = "Deformed"
+        self._surface   = Surface.FromVertices(verts, coords=coords, func=func)
+        self.compute(None)
+            
+    def surface_init(self, t=None):
+        if self._surface is None:
+            return
+        
+        # The mesh
+        mesh = self.obj.data
+        
+        # Create the new geometry
+        mesh.clear_geometry()
+        
+        # Vertices and faces
+        mesh.from_pydata(self._surface.compute(t), [], self._surface.faces())
+        
+        # Create the uv layer
+        uv_layer = mesh.uv_layers.new()
+
+        # Rapid if uv are specified for all faces
+        uvs = [uv_co for uv in self._surface.uvs() for uv_co in uv]
+        
+        for i, uv in enumerate(uv_layer.data):
+            uv.uv = uvs[i]
+        
+        # Make sure it is ok
+        mesh.update()
+        mesh.validate()
+            
+    def compute(self, t):
+        
+        if self._surface is None:
+            raise WrapException(
+                f"WMesh compute error: no surface attribute is set to mesh object '{self.obj.name}'"
+                )
+            
+        # Compute the vertices
+        verts = self._surface.compute(t)
+        
+        # The mesh
+        mesh = self.obj.data
+        
+        if len(verts) != len(mesh.vertices):
+            self.surface_init()
+        else:
+            verts = verts.reshape(len(verts)*3)
+            if self.surface_sk is None:
+                mesh.vertices.foreach_set('co', verts)
+            else:
+                sk = self.get_sk(self.surface_sk, create=True)
+                sk.data.foreach_set('co', verts)
+            
+    def compute_shapekeys(self, t0, t1, steps=10):
+        
+        steps = max(2, steps)
+        dt = (t1-t0)/steps
+        
+        # Initial key to ensure everything is correctly initialized
+        self.compute(t0)
+        count = len(self.obj.data.vertices)*3
+        
+        # Loop on shape keys
+        for step in range(steps+1):
+            sk = self.get_sk(name='Surface', step=step)
+            sk.data.foreach_set('co', self._surface.compute(t0 + dt*step).reshape(count))    
 
 
 # =============================================================================================================================
@@ -290,8 +478,9 @@ class WCurveObject(WObject):
 # =============================================================================================================================
 # Wrap a Blender object
 
-def wrap(obj):
-    obj = blender.get_object(obj)
+def wrap(obj, create=None, collection=None, **kwargs):
+    
+    obj = blender.getcreate_object(obj, create, collection, **kwargs)
 
     if obj.type == 'MESH':
         return WMeshObject(obj)
@@ -301,10 +490,6 @@ def wrap(obj):
         return WEmpty(obj)
     else:
         return WObject(obj)
-    
-        #raise WrapException(
-        #    "Object not wrappable", obj,
-        #    f"No wrapper is implemented for type '{obj.type}'")
 
 # =============================================================================================================================
 # Keyframe curves

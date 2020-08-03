@@ -10,10 +10,12 @@ import numpy as np
 from math import pi
 
 # FOR DEV
-
 import matplotlib.pyplot as plt
 
-###
+#
+
+#from wrapanime.utils import WrapException
+
 
 # =============================================================================================================================
 # Useful constants
@@ -184,6 +186,12 @@ class Interpolation():
         self.y0             = y0      # 
         self.Dy             = y1-y0   # delta y
         
+        # Specific Parameters 
+        self.amplitude = 0.
+        self.back      = 0.
+        self.period    = 0.
+        self.factor    = 1.70158
+        
         # Interpolation
         self._interpolation = ""
         self.interpolation  = interpolation
@@ -229,8 +237,7 @@ class Interpolation():
     @classmethod
     def Bezier(cls, x0=0., x1=1, y0=0., y1=1., easing='AUTO', P1=(1/3, 0.), P2=(2/3, 1.)):
         interp = Interpolation(x0, x1, y0, y1, 'BEZIER', easing)
-        interp.set_bpoint(1, P1)
-        interp.set_bpoint(2, P2)
+        interp.init_bezier(P1, P2)
         return interp
     
     @classmethod
@@ -297,11 +304,6 @@ class Interpolation():
         self._auto     = self.INTERPS[value]['auto']
         self._tangents = self.INTERPS[value]['tangents']
         
-        # Specific Parameters 
-        self.amplitude = 0.
-        self.back      = 0.
-        self.period    = 0.
-        self.factor    = 1.70158
         
         self.comp_bounces()
         
@@ -347,19 +349,16 @@ class Interpolation():
     # Bezier points initialization
         
     def init_bezier(self, P1=(1/3, 0.), P2=(2/3, 1.)):
-
-        self._bpoints       = np.zeros((4, 2), np.float)
+        self.P1 = P1
+        self.P2 = P2
         
-        self.set_bpoint(0, (self.x0, self.y0))
-        self.set_bpoint(1, P1)
-        self.set_bpoint(2, P2)
-        self.set_bpoint(3, (self.x0 + self.Dx, self.y0 + self.Dy))
-                        
-    def get_bpoint(self, index):
-        return self._bpoints[index]
-
-    def set_bpoint(self, index, P):
-        self._bpoints[index] = np.array(P)
+    @property
+    def P0(self):
+        return np.array((self.x0, self.y0))
+    
+    @property
+    def P3(self):
+        return np.array((self.x0 + self.Dx, self.y0 + self.Dy))
         
     # ---------------------------------------------------------------------------
     # Initialization specific to bounces
@@ -384,15 +383,100 @@ class Interpolation():
         self.di = np.insert(a * di * di / 4, 0, 1)  # Parabola equation : a*x*x + di
         self.ci = np.insert(xi[:-1] + di/2, 0, 0)
         
+    
+    # ---------------------------------------------------------------------------
+    # Bezier computation
+    # Call only after ensuring x is within the [x0, x1] interval
+    
+    def bezier(self, x):
+        
+        xs = np.array(x)
+        single = len(xs.shape) == 0
+        if single:
+            xs = np.array([xs])
+        count = len(xs)
+        
+        t0 = np.zeros((count, 2), np.float)
+        t1 = np.ones((count, 2), np.float)
+        
+        P0 = np.resize(self.P0, (count, 2))
+        P1 = np.resize(self.P1, (count, 2))
+        P2 = np.resize(self.P2, (count, 2))
+        P3 = np.resize(self.P3, (count, 2))
+        
+        P  = np.empty((count, 2), np.float)
+        ix = np.arange(count)
+        
+        # Start with t close to the location of x in the interval
+        
+        alpha = (xs - P0[:, 0])/(P3[:, 0] - P0[:, 0])
+        t     = t1 * np.resize(alpha, (2, count)).transpose()
+        
+        for i in range(15):
+            
+            #print(f"step {i}: {len(ix)} --> {ix}")
+            
+            # Compute the current bezier point for t
+            # t0 and t1 have the length of ix
+            
+            t2   = t*t
+            t3   = t2*t
+            
+            umt  = 1-t
+            umt2 = umt*umt
+            umt3 = umt2*umt
+            
+            P[ix] = umt3*P0[ix] + 3*umt2*t*P1[ix] + 3*umt*t2*P2[ix] +  t3*P3[ix]
+            #print(f"t: {t[:, 0]}, x: {P[ix, 0]}, gap: {P[ix, 0]-xs[ix]}")
+            
+            # Dichotomy step
+            
+            zeros  = np.where(np.abs(P[ix, 0] - xs[ix]) < 1e-4)[0]
+            new_ix = np.delete(ix, zeros)
+            
+            # Done for all the t values
+            if len(new_ix) == 0:
+                break
+            
+            # Update t0 and t1
+            
+            imin = np.where(P[ix, 0] < xs[ix])[0]
+            imax = np.delete(np.arange(len(ix)), imin)
+            
+            t0[imin] = t[imin]
+            t1[imax] = t[imax]
+            
+            # reduce the size of the arrays
+            
+            nzs = np.delete(np.arange(len(ix)), zeros)
+            t0 = t0[nzs]
+            t1 = t1[nzs]
+            t  = (t0 + t1)/2 
+            
+            ix = new_ix
+            
+        if single:
+            return P[0, 1]
+        else:
+            return P[:, 1]
+        
+        
     # ---------------------------------------------------------------------------
     # Interpolation
         
     def __call__(self, x):
         
-        # Normalized the abscissa between 0 and 1
-        ts = (np.array(x) - self.x0)/self.Dx
-        
+        # Work only with arrays
+        xs = np.array(x)
+
         # A single value
+        single = len(xs.shape) == 0
+        if single:
+            xs = np.array([xs])
+            
+        # Normalized the abscissa between 0 and 1
+        ts = (xs - self.x0)/self.Dx
+        
         single = len(ts.shape) == 0
         if single:
             ts = np.array([ts])
@@ -402,6 +486,7 @@ class Interpolation():
         i_sup = np.where(ts >= 1)[0]
         
         # Abscissas exist outside
+        idx     = np.arange(len(ts))
         outside = (len(i_inf) + len(i_sup)) > 0
         if outside:
             ys = np.empty_like(ts)
@@ -409,23 +494,15 @@ class Interpolation():
             ys[i_inf] = self.y0
             ys[i_sup] = self.y0 + self.Dy
             
-            idx = np.delete(np.arange(len(ys)), np.concatenate((i_inf, i_sup)))
+            idx = np.delete(idx, np.concatenate((i_inf, i_sup)))
             
-            t = ts[idx]
-            
-        else:
-            t = ts
+        t = ts[idx]
             
         # Compute on the required abscissa
         if self.interpolation == 'BEZIER':
-            t2   = t*t
-            t3   = t2*t
-            umt  = 1-t
-            umt2 = umt*umt
-            umt3 = umt2*umt
-            
-            vals = umt3*self.x0 + umt2*t*self._bpoints[1, 0] + umt*t2*self._bpoints[2, 0] + t3*self.x1
-            
+
+            vals = self.bezier(xs[idx])
+
         else:
             mode = self.easing_mode
     
@@ -484,9 +561,9 @@ class Interpolation():
     @property
     def left_tangent(self):
         if self.interpolation == 'BEZIER':
-            dx = self._bpoints[1, 0] - self._bpoints[1, 0]
-            dy = self._bpoints[1, 1] - self._bpoints[1, 1]
-            if abs(dx) < 1e6:
+            dx = self.P1[0] - self.x0
+            dy = self.P1[1] - self.y0
+            if abs(dx) < 1e-6:
                 return 0.
             else:
                 return dy/dx
@@ -507,9 +584,9 @@ class Interpolation():
     @property
     def right_tangent(self):
         if self.interpolation == 'BEZIER':
-            dx = self._bpoints[3, 0] - self._bpoints[2, 0]
-            dy = self._bpoints[3, 1] - self._bpoints[2, 1]
-            if abs(dx) < 1e6:
+            dx = self.x1 - self.P2[0]
+            dy = self.y1 - self.P2[1]
+            if abs(dx) < 1e-6:
                 return 0.
             else:
                 return dy/dx
@@ -545,16 +622,16 @@ class Interpolation():
         fig, ax = plt.subplots()
         
         def splot(mode):
-            mmode = self.mode
-            self.mode = mode
+            mmode = self.easing
+            self.easing = mode
             ys = self(xs)
-            self.mode = mmode
+            self.easing = mmode
             
             ax.plot(xs, ys)
             
-        #splot(0)
-        splot(1)
-        #splot(2)
+        #splot('EASE_IN')
+        splot('EASE_OUT')
+        #splot('EASE_IN_OUT')
 
         
         if fcomp is not None:
@@ -566,7 +643,8 @@ class Interpolation():
         
         fig.savefig("test.png")
         plt.show()
-    
+
+
 # =============================================================================================================================
 # A curve
         
@@ -816,7 +894,6 @@ def test_c(count=10):
     wfc = WFCurve()
     x0 = 0.
     y0 = 0.
-    y = np.random
     for i in range(count):
         x1 = x0 + 1
         y1 = y0 + (np.random.random_sample()-0.5)*2
@@ -832,7 +909,7 @@ def test_c(count=10):
     print(wfc)
     wfc._plot(count=1000)
 
-#test_c()
+test_c()
         
         
     

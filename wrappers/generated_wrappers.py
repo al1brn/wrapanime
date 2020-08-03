@@ -1,8 +1,8 @@
 # ****************************************************************************************************
-# Generated 2020-07-21
+# Generated 2020-08-02
 
 import numpy as np
-from wrapanime.wrappers.root import to_array, ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot, WSplineRoot, WSplinesRoot
+from wrapanime.wrappers.root import to_array, ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot, WMeshRoot, WSplineRoot, WSplinesRoot
 from wrapanime.utils.errors import WrapException
 
 #================================================================================
@@ -661,7 +661,7 @@ class WPolygons(CollWrapper):
 #================================================================================
 # Mesh class wrapper
 
-class WMesh(Wrapper):
+class WMesh(WMeshRoot):
 
     def __init__(self, obj, wowner):
         super().__init__(obj, wowner)
@@ -3510,6 +3510,557 @@ class WObjects(CollWrapper):
         for (i, _i_obj, _i_location, ) in zip(range(len(self)), self, _location, ):
             _res[i] = _i_obj.distance(_i_location)
         return _res
+
+#================================================================================
+# Texture class wrapper
+
+class WTexture(Wrapper):
+
+    @property
+    def cloud_type(self): # str
+        return self.obj.cloud_type
+
+    @cloud_type.setter
+    def cloud_type(self, value): # str
+        self.obj.cloud_type = value
+
+    @property
+    def contrast(self): # float
+        return self.obj.contrast
+
+    @contrast.setter
+    def contrast(self, value): # float
+        self.obj.contrast = value
+
+    @property
+    def factor_blue(self): # float
+        return self.obj.factor_blue
+
+    @factor_blue.setter
+    def factor_blue(self, value): # float
+        self.obj.factor_blue = value
+
+    @property
+    def factor_green(self): # float
+        return self.obj.factor_green
+
+    @factor_green.setter
+    def factor_green(self, value): # float
+        self.obj.factor_green = value
+
+    @property
+    def factor_red(self): # float
+        return self.obj.factor_red
+
+    @factor_red.setter
+    def factor_red(self, value): # float
+        self.obj.factor_red = value
+
+    @property
+    def intensity(self): # float
+        return self.obj.intensity
+
+    @intensity.setter
+    def intensity(self, value): # float
+        self.obj.intensity = value
+
+    @property
+    def is_embedded_data(self): # bool
+        return self.obj.is_embedded_data
+
+    @property
+    def is_evaluated(self): # bool
+        return self.obj.is_evaluated
+
+    @property
+    def is_library_indirect(self): # bool
+        return self.obj.is_library_indirect
+
+    @property
+    def nabla(self): # float
+        return self.obj.nabla
+
+    @nabla.setter
+    def nabla(self, value): # float
+        self.obj.nabla = value
+
+    @property
+    def name(self): # str
+        return self.obj.name
+
+    @name.setter
+    def name(self, value): # str
+        self.obj.name = value
+
+    @property
+    def name_full(self): # str
+        return self.obj.name_full
+
+    @property
+    def noise_basis(self): # str
+        return self.obj.noise_basis
+
+    @noise_basis.setter
+    def noise_basis(self, value): # str
+        self.obj.noise_basis = value
+
+    @property
+    def noise_depth(self): # int
+        return self.obj.noise_depth
+
+    @noise_depth.setter
+    def noise_depth(self, value): # int
+        self.obj.noise_depth = value
+
+    @property
+    def noise_scale(self): # float
+        return self.obj.noise_scale
+
+    @noise_scale.setter
+    def noise_scale(self, value): # float
+        self.obj.noise_scale = value
+
+    @property
+    def noise_type(self): # str
+        return self.obj.noise_type
+
+    @noise_type.setter
+    def noise_type(self, value): # str
+        self.obj.noise_type = value
+
+    @property
+    def saturation(self): # float
+        return self.obj.saturation
+
+    @saturation.setter
+    def saturation(self, value): # float
+        self.obj.saturation = value
+
+    @property
+    def tag(self): # bool
+        return self.obj.tag
+
+    @tag.setter
+    def tag(self, value): # bool
+        self.obj.tag = value
+
+    @property
+    def type(self): # str
+        return self.obj.type
+
+    @type.setter
+    def type(self, value): # str
+        self.obj.type = value
+
+    @property
+    def use_clamp(self): # bool
+        return self.obj.use_clamp
+
+    @use_clamp.setter
+    def use_clamp(self, value): # bool
+        self.obj.use_clamp = value
+
+    @property
+    def use_color_ramp(self): # bool
+        return self.obj.use_color_ramp
+
+    @use_color_ramp.setter
+    def use_color_ramp(self, value): # bool
+        self.obj.use_color_ramp = value
+
+    @property
+    def use_fake_user(self): # bool
+        return self.obj.use_fake_user
+
+    @use_fake_user.setter
+    def use_fake_user(self, value): # bool
+        self.obj.use_fake_user = value
+
+    @property
+    def use_nodes(self): # bool
+        return self.obj.use_nodes
+
+    @use_nodes.setter
+    def use_nodes(self, value): # bool
+        self.obj.use_nodes = value
+
+    @property
+    def use_preview_alpha(self): # bool
+        return self.obj.use_preview_alpha
+
+    @use_preview_alpha.setter
+    def use_preview_alpha(self, value): # bool
+        self.obj.use_preview_alpha = value
+
+#================================================================================
+# Array of WTextures
+
+class WTextures(ArrayOf):
+    def __init__(self, wowner):
+        super().__init__(wowner, WTexture)
+        self._cache_cloud_types             = None
+        self._cache_contrasts               = None
+        self._cache_factor_blues            = None
+        self._cache_factor_greens           = None
+        self._cache_factor_reds             = None
+        self._cache_intensitys              = None
+        self._cache_is_embedded_datas       = None
+        self._cache_is_evaluateds           = None
+        self._cache_is_library_indirects    = None
+        self._cache_nablas                  = None
+        self._cache_names                   = None
+        self._cache_name_fulls              = None
+        self._cache_noise_basis_s           = None
+        self._cache_noise_depths            = None
+        self._cache_noise_scales            = None
+        self._cache_noise_types             = None
+        self._cache_saturations             = None
+        self._cache_tags                    = None
+        self._cache_types                   = None
+        self._cache_use_clamps              = None
+        self._cache_use_color_ramps         = None
+        self._cache_use_fake_users          = None
+        self._cache_use_nodes_s             = None
+        self._cache_use_preview_alphas      = None
+
+    def erase_cache(self):
+        super().erase_cache()
+        self._cache_cloud_types             = None
+        self._cache_contrasts               = None
+        self._cache_factor_blues            = None
+        self._cache_factor_greens           = None
+        self._cache_factor_reds             = None
+        self._cache_intensitys              = None
+        self._cache_is_embedded_datas       = None
+        self._cache_is_evaluateds           = None
+        self._cache_is_library_indirects    = None
+        self._cache_nablas                  = None
+        self._cache_names                   = None
+        self._cache_name_fulls              = None
+        self._cache_noise_basis_s           = None
+        self._cache_noise_depths            = None
+        self._cache_noise_scales            = None
+        self._cache_noise_types             = None
+        self._cache_saturations             = None
+        self._cache_tags                    = None
+        self._cache_types                   = None
+        self._cache_use_clamps              = None
+        self._cache_use_color_ramps         = None
+        self._cache_use_fake_users          = None
+        self._cache_use_nodes_s             = None
+        self._cache_use_preview_alphas      = None
+
+    @property
+    def cloud_types(self): # Array of str
+        if self._cache_cloud_types is None:
+            self._cache_cloud_types = np.empty(len(self), np.object)
+            for i in range(len(self)):
+                self._cache_cloud_types[i] = self[i].cloud_type
+        return self._cache_cloud_types
+
+    @cloud_types.setter
+    def cloud_types(self, values): # Arrayf of str
+        self._cache_cloud_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].cloud_type = self._cache_cloud_types[i]
+
+    @property
+    def contrasts(self): # Array of float
+        if self._cache_contrasts is None:
+            self._cache_contrasts = np.empty(len(self), np.float)
+            for i in range(len(self)):
+                self._cache_contrasts[i] = self[i].contrast
+        return self._cache_contrasts
+
+    @contrasts.setter
+    def contrasts(self, values): # Arrayf of float
+        self._cache_contrasts = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].contrast = self._cache_contrasts[i]
+
+    @property
+    def factor_blues(self): # Array of float
+        if self._cache_factor_blues is None:
+            self._cache_factor_blues = np.empty(len(self), np.float)
+            for i in range(len(self)):
+                self._cache_factor_blues[i] = self[i].factor_blue
+        return self._cache_factor_blues
+
+    @factor_blues.setter
+    def factor_blues(self, values): # Arrayf of float
+        self._cache_factor_blues = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].factor_blue = self._cache_factor_blues[i]
+
+    @property
+    def factor_greens(self): # Array of float
+        if self._cache_factor_greens is None:
+            self._cache_factor_greens = np.empty(len(self), np.float)
+            for i in range(len(self)):
+                self._cache_factor_greens[i] = self[i].factor_green
+        return self._cache_factor_greens
+
+    @factor_greens.setter
+    def factor_greens(self, values): # Arrayf of float
+        self._cache_factor_greens = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].factor_green = self._cache_factor_greens[i]
+
+    @property
+    def factor_reds(self): # Array of float
+        if self._cache_factor_reds is None:
+            self._cache_factor_reds = np.empty(len(self), np.float)
+            for i in range(len(self)):
+                self._cache_factor_reds[i] = self[i].factor_red
+        return self._cache_factor_reds
+
+    @factor_reds.setter
+    def factor_reds(self, values): # Arrayf of float
+        self._cache_factor_reds = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].factor_red = self._cache_factor_reds[i]
+
+    @property
+    def intensitys(self): # Array of float
+        if self._cache_intensitys is None:
+            self._cache_intensitys = np.empty(len(self), np.float)
+            for i in range(len(self)):
+                self._cache_intensitys[i] = self[i].intensity
+        return self._cache_intensitys
+
+    @intensitys.setter
+    def intensitys(self, values): # Arrayf of float
+        self._cache_intensitys = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].intensity = self._cache_intensitys[i]
+
+    @property
+    def is_embedded_datas(self): # Array of bool
+        if self._cache_is_embedded_datas is None:
+            self._cache_is_embedded_datas = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_is_embedded_datas[i] = self[i].is_embedded_data
+        return self._cache_is_embedded_datas
+
+    @property
+    def is_evaluateds(self): # Array of bool
+        if self._cache_is_evaluateds is None:
+            self._cache_is_evaluateds = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_is_evaluateds[i] = self[i].is_evaluated
+        return self._cache_is_evaluateds
+
+    @property
+    def is_library_indirects(self): # Array of bool
+        if self._cache_is_library_indirects is None:
+            self._cache_is_library_indirects = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_is_library_indirects[i] = self[i].is_library_indirect
+        return self._cache_is_library_indirects
+
+    @property
+    def nablas(self): # Array of float
+        if self._cache_nablas is None:
+            self._cache_nablas = np.empty(len(self), np.float)
+            for i in range(len(self)):
+                self._cache_nablas[i] = self[i].nabla
+        return self._cache_nablas
+
+    @nablas.setter
+    def nablas(self, values): # Arrayf of float
+        self._cache_nablas = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].nabla = self._cache_nablas[i]
+
+    @property
+    def names(self): # Array of str
+        if self._cache_names is None:
+            self._cache_names = np.empty(len(self), np.object)
+            for i in range(len(self)):
+                self._cache_names[i] = self[i].name
+        return self._cache_names
+
+    @names.setter
+    def names(self, values): # Arrayf of str
+        self._cache_names = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].name = self._cache_names[i]
+
+    @property
+    def name_fulls(self): # Array of str
+        if self._cache_name_fulls is None:
+            self._cache_name_fulls = np.empty(len(self), np.object)
+            for i in range(len(self)):
+                self._cache_name_fulls[i] = self[i].name_full
+        return self._cache_name_fulls
+
+    @property
+    def noise_basis_s(self): # Array of str
+        if self._cache_noise_basis_s is None:
+            self._cache_noise_basis_s = np.empty(len(self), np.object)
+            for i in range(len(self)):
+                self._cache_noise_basis_s[i] = self[i].noise_basis
+        return self._cache_noise_basis_s
+
+    @noise_basis_s.setter
+    def noise_basis_s(self, values): # Arrayf of str
+        self._cache_noise_basis_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].noise_basis = self._cache_noise_basis_s[i]
+
+    @property
+    def noise_depths(self): # Array of int
+        if self._cache_noise_depths is None:
+            self._cache_noise_depths = np.empty(len(self), np.int)
+            for i in range(len(self)):
+                self._cache_noise_depths[i] = self[i].noise_depth
+        return self._cache_noise_depths
+
+    @noise_depths.setter
+    def noise_depths(self, values): # Arrayf of int
+        self._cache_noise_depths = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].noise_depth = self._cache_noise_depths[i]
+
+    @property
+    def noise_scales(self): # Array of float
+        if self._cache_noise_scales is None:
+            self._cache_noise_scales = np.empty(len(self), np.float)
+            for i in range(len(self)):
+                self._cache_noise_scales[i] = self[i].noise_scale
+        return self._cache_noise_scales
+
+    @noise_scales.setter
+    def noise_scales(self, values): # Arrayf of float
+        self._cache_noise_scales = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].noise_scale = self._cache_noise_scales[i]
+
+    @property
+    def noise_types(self): # Array of str
+        if self._cache_noise_types is None:
+            self._cache_noise_types = np.empty(len(self), np.object)
+            for i in range(len(self)):
+                self._cache_noise_types[i] = self[i].noise_type
+        return self._cache_noise_types
+
+    @noise_types.setter
+    def noise_types(self, values): # Arrayf of str
+        self._cache_noise_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].noise_type = self._cache_noise_types[i]
+
+    @property
+    def saturations(self): # Array of float
+        if self._cache_saturations is None:
+            self._cache_saturations = np.empty(len(self), np.float)
+            for i in range(len(self)):
+                self._cache_saturations[i] = self[i].saturation
+        return self._cache_saturations
+
+    @saturations.setter
+    def saturations(self, values): # Arrayf of float
+        self._cache_saturations = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].saturation = self._cache_saturations[i]
+
+    @property
+    def tags(self): # Array of bool
+        if self._cache_tags is None:
+            self._cache_tags = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_tags[i] = self[i].tag
+        return self._cache_tags
+
+    @tags.setter
+    def tags(self, values): # Arrayf of bool
+        self._cache_tags = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].tag = self._cache_tags[i]
+
+    @property
+    def types(self): # Array of str
+        if self._cache_types is None:
+            self._cache_types = np.empty(len(self), np.object)
+            for i in range(len(self)):
+                self._cache_types[i] = self[i].type
+        return self._cache_types
+
+    @types.setter
+    def types(self, values): # Arrayf of str
+        self._cache_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].type = self._cache_types[i]
+
+    @property
+    def use_clamps(self): # Array of bool
+        if self._cache_use_clamps is None:
+            self._cache_use_clamps = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_use_clamps[i] = self[i].use_clamp
+        return self._cache_use_clamps
+
+    @use_clamps.setter
+    def use_clamps(self, values): # Arrayf of bool
+        self._cache_use_clamps = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].use_clamp = self._cache_use_clamps[i]
+
+    @property
+    def use_color_ramps(self): # Array of bool
+        if self._cache_use_color_ramps is None:
+            self._cache_use_color_ramps = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_use_color_ramps[i] = self[i].use_color_ramp
+        return self._cache_use_color_ramps
+
+    @use_color_ramps.setter
+    def use_color_ramps(self, values): # Arrayf of bool
+        self._cache_use_color_ramps = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].use_color_ramp = self._cache_use_color_ramps[i]
+
+    @property
+    def use_fake_users(self): # Array of bool
+        if self._cache_use_fake_users is None:
+            self._cache_use_fake_users = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_use_fake_users[i] = self[i].use_fake_user
+        return self._cache_use_fake_users
+
+    @use_fake_users.setter
+    def use_fake_users(self, values): # Arrayf of bool
+        self._cache_use_fake_users = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].use_fake_user = self._cache_use_fake_users[i]
+
+    @property
+    def use_nodes_s(self): # Array of bool
+        if self._cache_use_nodes_s is None:
+            self._cache_use_nodes_s = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_use_nodes_s[i] = self[i].use_nodes
+        return self._cache_use_nodes_s
+
+    @use_nodes_s.setter
+    def use_nodes_s(self, values): # Arrayf of bool
+        self._cache_use_nodes_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].use_nodes = self._cache_use_nodes_s[i]
+
+    @property
+    def use_preview_alphas(self): # Array of bool
+        if self._cache_use_preview_alphas is None:
+            self._cache_use_preview_alphas = np.empty(len(self), np.bool)
+            for i in range(len(self)):
+                self._cache_use_preview_alphas[i] = self[i].use_preview_alpha
+        return self._cache_use_preview_alphas
+
+    @use_preview_alphas.setter
+    def use_preview_alphas(self, values): # Arrayf of bool
+        self._cache_use_preview_alphas = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        for i in range(len(self)):
+            self[i].use_preview_alpha = self._cache_use_preview_alphas[i]
 
 #================================================================================
 # KeyFrame class wrapper

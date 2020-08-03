@@ -19,7 +19,7 @@ def wrappers_file():
     yield "# Generated {}".format(datetime.date.today())
     yield ""
     yield "import numpy as np"
-    yield "from wrapanime.wrappers.root import to_array, ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot, WSplineRoot, WSplinesRoot"
+    yield "from wrapanime.wrappers.root import to_array, ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot, WMeshRoot, WSplineRoot, WSplinesRoot"
     yield "from wrapanime.utils.errors import WrapException"
     yield ""
     
@@ -54,6 +54,9 @@ def wrappers_file():
         yield line
     
     for line in generate(wmaps.ObjectGenerator()):
+        yield line
+        
+    for line in generate(wmaps.TextureGenerator()):
         yield line
         
     for line in generate(wmaps.KeyFrameGenerator()):
