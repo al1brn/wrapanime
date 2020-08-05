@@ -10,11 +10,11 @@ import numpy as np
 from math import pi
 
 # FOR DEV
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 #
 
-#from wrapanime.utils import WrapException
+from wrapanime.utils.errors import WrapException
 
 # =============================================================================================================================
 # Useful constants
@@ -201,7 +201,7 @@ class Interpolation():
         self.interpolation  = interpolation
         
         # Easing
-        self._easing        = 0
+        self._easing        = 'AUTO'
         self.easing         = easing
         
     # ---------------------------------------------------------------------------
@@ -329,8 +329,8 @@ class Interpolation():
         interp = Interpolation(
             kf0.co.x, kf1.co.x, kf0.co.y, kf1.co.y,
             interpolation=kf0.interpolation, easing=kf0.easing)
-        interp.set_bpoint(1, kf0.handle_right)
-        interp.set_bpoint(2, kf1.handle_left)
+        interp.P1 = kf0.handle_right
+        interp.P2 = kf1.handle_left
         
         interp.amplitude = kf0.amplitude
         interp.back      = kf0.back
@@ -480,7 +480,6 @@ class Interpolation():
         self.xi = np.insert(xi[:-1], 0, 0)                # 0, q/2, q, ... 
         self.di = np.insert(a * di * di / 4, 0, 1)  # Parabola equation : a*x*x + di
         self.ci = np.insert(xi[:-1] + di/2, 0, 0)
-        
     
     # ---------------------------------------------------------------------------
     # Bezier computation
@@ -767,7 +766,8 @@ class WFCurve():
     # ---------------------------------------------------------------------------
     # Initialize from a Blender fcurve
             
-    def FromFCurve(self, fcurve):
+    @classmethod
+    def FromFCurve(cls, fcurve):
         
         wfc = WFCurve()
         wfc.extrapolation = fcurve.extrapolation
@@ -780,6 +780,37 @@ class WFCurve():
         wfc.capture_bpoints()
             
         return wfc
+    
+    # ---------------------------------------------------------------------------
+    # To fcurve
+    # Not a true fcurve but an array of keyframe like
+    
+    @property
+    def keyframe_points(self):
+        
+        class Kf():
+            pass
+        
+        kfs = []
+        for i in range(len(self)+1):
+            itp = self[min(i, len(self)-1)]
+            kf = Kf()
+            
+            index = self.interp_index(i)
+            kf.handle_left   = np.array(self.bpoints[index-1])
+            kf.co            = np.array(self.bpoints[index])
+            kf.handle_right  = np.array(self.bpoints[index+1])
+            
+            kf.interpolation = itp.interpolation
+            kf.amplitude     = itp.amplitude
+            kf.back          = itp.back
+            kf.easing        = itp.easing
+            kf.period        = itp.period
+            
+            kfs.append(kf)
+            
+        return kfs
+    
     
     # ---------------------------------------------------------------------------
     # As an array of interpolations
@@ -985,7 +1016,7 @@ class WFCurve():
         return ys
     
     # ====================================================================================================
-    # Some changes
+    # Scale along X and Y
     
     def scale(self, scale):
         sc = np.array(scale)
@@ -993,8 +1024,8 @@ class WFCurve():
             scx = scale
             scy = 1.
         else:
-            scx = scale[0]
-            scy = scale[1]
+            scx = sc[0]
+            scy = sc[1]
             
         
         a = self.bpoints[2:] - self.bpoints[1]
@@ -1002,7 +1033,20 @@ class WFCurve():
         a[:, 1] *= scy
         
         self.bpoints[2:] = self.bpoints[1] + a
+
+    # ====================================================================================================
+    # Translate along X and Y
     
+    def translate(self, vec):
+        v = np.array(vec)
+        if len(v.shape) == 0:
+            vx = vec
+            vy = 0.
+        else:
+            vx = v[0]
+            vy = v[1]
+            
+        self.bpoints += (vx, vy) 
     
     # ====================================================================================================
     # Call

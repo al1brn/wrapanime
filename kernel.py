@@ -19,61 +19,6 @@ from wrapanime.utils.errors import WrapException
 
 # ******************************************************************************************************************************************************
 # ******************************************************************************************************************************************************
-# function call
-# ******************************************************************************************************************************************************
-# ******************************************************************************************************************************************************
-
-# DEPRECATED
-
-def call_function(f, **kwargs):
-
-    # Get the full argument specifications
-    f_args = inspect.getfullargspec(f)
-
-    index = kwargs.get("index")
-
-    # Prepare the dictionnary to call the function f
-    args = {}
-
-    # The argument names are in f_args.args
-    # The first ones have not necessarily a default value
-    # Check that the **kwargs contain the necessary values
-
-    total      = len(f_args.args)
-    def_count  = len(f_args.defaults)
-
-    for i in range(total-def_count):
-        arg = f_args.args[i]
-        try:
-            args[arg] = kwargs[arg]
-        except:
-            error_header("Missing argument ERROR", kwargs)
-            for kw, arg in kwargs.items():
-                print("   {:9}: {}".format(kw, arg))
-            raise NameError("Argument '{}' is mandatory in the fonction '{}' but kwargs list doesn't include it.".format(arg, f.__name__))
-
-    # The same for arguments with default value but no exception
-    for i in range(def_count):
-        arg = f_args.args[total-def_count+i]
-        try:
-            args[arg] = kwargs[arg]
-        except:
-            args[arg] = f_args.defaults[i]
-
-    # Now, need to see if args in kwargs are indexed liste
-
-    for kws, arg in kwargs.items():
-        if kws[-1] == 's' and len(kws) > 1 and issubclass(type(arg), List):
-            kw = kws[:-1]
-            if kw in args.keys():
-                args[kw] = arg[index]
-
-    # Let's call the function and return the result
-
-    return f(**args)
-
-# ******************************************************************************************************************************************************
-# ******************************************************************************************************************************************************
 # Time management
 # ******************************************************************************************************************************************************
 # ******************************************************************************************************************************************************

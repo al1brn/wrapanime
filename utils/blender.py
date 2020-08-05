@@ -421,6 +421,13 @@ def is_fcurve_of(fcurve, name, index=0):
     
     return False
 
+def delete_fcurve(obj, fcurve):
+    fcurves = get_fcurves(obj)
+    try:
+        fcurves.remove(fcurve)
+    except:
+        pass
+
 def name_to_path_index(obj, name):
     """Transform a user name in blender (data_path, array_index) couple.
     
@@ -505,7 +512,6 @@ def get_keyframe(obj, name, frame, index=None):
             return kf
         
     return None
-    
 
 # ----------------------------------------------------------------------------------------------------
 # Create and animation curve
@@ -522,6 +528,36 @@ def new_curve(obj, name, index=None):
         curve = fcurves.new(data_path=name, index=index)
 
     return curve
+
+# ----------------------------------------------------------------------------------------------------
+# Set an existing fcurve
+    
+def set_fcurve(obj, name, fcurve, index=None):
+    
+    kfp = fcurve.keyframe_points
+    
+    if len(kfp) == 0:
+        return
+
+    if index is None:
+        obj, name, index = name_to_path_index(obj, name)
+        
+    fc = new_curve(obj, name, index)
+    n = len(fc.keyframe_points)
+    for i in range(n):
+        fc.keyframe_points.remove(fc.keyframe_points[0], fast=True)
+        
+    fc.extrapolation = fcurve.extrapolation
+    fc.keyframe_points.add(len(kfp))
+    for kfs, kft in zip(kfp, fc.keyframe_points):
+        kft.co            = kfs.co.copy()
+        kft.interpolation = kfs.interpolation
+        kft.amplitude     = kfs.amplitude
+        kft.back          = kfs.back
+        kft.easing        = kfs.easing
+        kft.handle_left   = kfs.handle_left
+        kft.handle_right  = kfs.handle_right
+        kft.period        = kfs.period
 
 # ----------------------------------------------------------------------------------------------------
 # Delete keyframes

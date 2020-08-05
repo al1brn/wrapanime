@@ -32,6 +32,7 @@ from wrapanime.mesh       import surface     as surface
 from wrapanime.mesh       import meshbuilder as meshbuilder
 
 from wrapanime.wrappers   import noise       as noise
+from wrapanime.functions  import tween       as tween
 
 
 Noise           = noise.Noise
@@ -55,4 +56,7 @@ wrap_collection   = blender.wrap_collection
 hidden_collection = blender.hidden_collection
 get_collection    = blender.get_collection
 
+
+WFCurve           = tween.WFCurve
+Interpolation     = tween.Interpolation
 

@@ -19,7 +19,9 @@ from wrapanime.utils import geometry as geo
 from wrapanime.functions.bezier import BezierCurve
 
 import wrapanime.cython.arrays as arrays
-from wrapanime.utils.errors import WrapShapeException, WrapException
+from wrapanime.utils.errors import WrapException
+
+from wrapanime.functions.tween import WFCurve
 
 # =============================================================================================================================
 # Adjust the shape of a value
@@ -305,6 +307,9 @@ class Wrapper():
     
     def new_curve(self, name):
         return blender.new_curve(self.obj, name)
+    
+    def set_fcurve(self, name, fcurve):
+        blender.set_fcurve(self.obj, name, fcurve)
     
     # ---------------------------------------------------------------------------
     # Delete key frames
