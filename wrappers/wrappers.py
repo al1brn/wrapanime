@@ -437,7 +437,8 @@ class WCurveObject(WObject):
         return bc
 
     def set_function(self, f, t0, t1, count=100):
-        self.wcurve.set_function(f, t0, t1, count=count)
+        self.wcurve.wsplines.clear()
+        self.wcurve.wsplines.add_function(f, t0, t1, count=count)
         
 
 # =============================================================================================================================

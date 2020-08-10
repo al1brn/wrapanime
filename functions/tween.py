@@ -165,19 +165,19 @@ class Interpolation():
     EASINGS = ['AUTO', 'EASE_IN', 'EASE_OUT', 'EASE_IN_OUT']
     
     INTERPS = {
-        'CONSTANT'  : {'func': f_constant,    'auto': 1, 'tangents': [0, 0]},
-        'LINEAR'    : {'func': f_linear,      'auto': 1, 'tangents': [1, 1]},
-        'BEZIER'    : {'func': f_bezier,      'auto': 1, 'tangents': [0, 0]},
-        'SINE'      : {'func': f_sine,        'auto': 1, 'tangents': [0, 1]},
-        'QUAD'      : {'func': f_quadratic,   'auto': 1, 'tangents': [0, 1]},
-        'CUBIC'     : {'func': f_cubic,       'auto': 1, 'tangents': [0, 1]},
-        'QUART'     : {'func': f_quartic,     'auto': 1, 'tangents': [0, 1]},
-        'QUINT'     : {'func': f_quintic,     'auto': 1, 'tangents': [0, 1]},
-        'EXPO'      : {'func': f_exponential, 'auto': 1, 'tangents': [10*np.log(2), 0]},
-        'CIRC'      : {'func': f_circular,    'auto': 1, 'tangents': [0, 0]},
-        'BACK'      : {'func': f_back,        'auto': 1, 'tangents': [0, 0]},
-        'BOUNCE'    : {'func': f_bounce,      'auto': 2, 'tangents': [0, 0]},
-        'ELASTIC'   : {'func': f_elastic,     'auto': 2, 'tangents': [0, 0]},
+        'CONSTANT'  : {'func': f_constant,    'auto': 'EASE_IN', 'tangents': [0, 0]},
+        'LINEAR'    : {'func': f_linear,      'auto': 'EASE_IN',  'tangents': [1, 1]},
+        'BEZIER'    : {'func': f_bezier,      'auto': 'EASE_IN',  'tangents': [0, 0]},
+        'SINE'      : {'func': f_sine,        'auto': 'EASE_IN',  'tangents': [0, 1]},
+        'QUAD'      : {'func': f_quadratic,   'auto': 'EASE_IN',  'tangents': [0, 1]},
+        'CUBIC'     : {'func': f_cubic,       'auto': 'EASE_IN',  'tangents': [0, 1]},
+        'QUART'     : {'func': f_quartic,     'auto': 'EASE_IN',  'tangents': [0, 1]},
+        'QUINT'     : {'func': f_quintic,     'auto': 'EASE_IN',  'tangents': [0, 1]},
+        'EXPO'      : {'func': f_exponential, 'auto': 'EASE_IN',  'tangents': [10*np.log(2), 0]},
+        'CIRC'      : {'func': f_circular,    'auto': 'EASE_IN',  'tangents': [0, 0]},
+        'BACK'      : {'func': f_back,        'auto': 'EASE_IN',  'tangents': [0, 0]},
+        'BOUNCE'    : {'func': f_bounce,      'auto': 'EASE_OUT', 'tangents': [0, 0]},
+        'ELASTIC'   : {'func': f_elastic,     'auto': 'EASE_OUT', 'tangents': [0, 0]},
         }
 
     def __init__(self, x0=0., x1=1., y0=0., y1=1., interpolation='BEZIER', easing='AUTO'):
@@ -201,8 +201,8 @@ class Interpolation():
         self.interpolation  = interpolation
         
         # Easing
-        self._easing        = 'AUTO'
-        self.easing         = easing
+        self._auto     = self.INTERPS[interpolation]['auto']
+        self.easing    = easing
         
     # ---------------------------------------------------------------------------
     # Bezier points
@@ -319,7 +319,10 @@ class Interpolation():
     # A user friendly representation
         
     def __repr__(self):
-        return f"Easing({self.interpolation}) [{self.x0:.2f} {self.x1:.2f}] -> [{self.y0:.2f} {self.y1:.2f}]"
+        easing = f"{self.easing}"
+        if easing == 'AUTO':
+            easing += f" (self.easing_mode)"
+        return f"Interpolation({self.interpolation}) [{self.x0:.2f} {self.x1:.2f}] -> [{self.y0:.2f} {self.y1:.2f} {easing}]"
 
     # ---------------------------------------------------------------------------
     # Initialize from two Blender KeyFrame points
@@ -411,7 +414,7 @@ class Interpolation():
     def interpolation(self, value):
         if not value in self.INTERPS.keys():
             raise WrapException(
-                f"Easing initialization error: invalid interpolation {value}.",
+                f"Interpolation initialization error: invalid interpolation {value}.",
                 f"Valid codes are {self.INTERPS.keys()}"
                 )
             
@@ -941,10 +944,20 @@ class WFCurve():
         # A single value
         
         if np.array(x).size == 1:
-            if x <= self.x0:
-                return self.y0 + (x-self.x0)*self[0].left_tangent
-            if x >= self.x1:
-                return self.y1 + (x-self.x1)*self[-1].right_tangent
+            
+            if self.extrapolation == 'CYCLIC':
+                x = self.x0 + (x-self.x0)%(self.x1 - self.x0)
+                
+            if self.extrapolation == 'CONSTANT':
+                if x <= self.x0:
+                    return self.y0
+                if x >= self.x1:
+                    return self.y1
+            else:
+                if x <= self.x0:
+                    return self.y0 + (x-self.x0)*self[0].left_tangent
+                if x >= self.x1:
+                    return self.y1 + (x-self.x1)*self[-1].right_tangent
             
             for interp in self.interpolations:
                 if interp.x0 + interp.delta >= x:
@@ -961,7 +974,7 @@ class WFCurve():
         
         # Cyclic extrapolation
         if self.extrapolation == 'CYCLIC':
-            xs = self.x0 + (np.array(x) - self.x0)/(self.x1 - self.x0)
+            xs = self.x0 + (np.array(x) - self.x0)%(self.x1 - self.x0)
         else:
             xs = np.array(x)
             
@@ -971,12 +984,18 @@ class WFCurve():
         # ----- Points which are below the definition interval
         
         i_inf = np.where(xs <= self.x0)[0]
-        ys[i_inf] = self.y0 + (xs[i_inf]-self.x0)*self.interpolations[0].left_tangent
+        if self.extrapolation == 'CONSTANT':
+            ys[i_inf] = self.y0
+        else:
+            ys[i_inf] = self.y0 + (xs[i_inf]-self.x0)*self.interpolations[0].left_tangent
         
         # ----- Points which are above the definition interval
 
         i_sup = np.where(xs >= self.x1)[0]
-        ys[i_sup] = self.y1 + (xs[i_sup]-self.x1)*self.interpolations[-1].right_tangent
+        if self.extrapolation == 'CONSTANT':
+            ys[i_sup] = self.y1
+        else:
+            ys[i_sup] = self.y1 + (xs[i_sup]-self.x1)*self.interpolations[-1].right_tangent
 
         # ----- Remaining points are within the definition interval
         

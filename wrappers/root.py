@@ -229,7 +229,7 @@ class Wrapper():
         
     def __repr__(self):
         name = type(self).__name__.split(".")[-1]
-        return f"[{name}({type(self.struct)}]"
+        return f"[{name}({type(self.bstruct)}]"
         
     # Cached properties are created dynamically
     # The names of the caches which can be erased are in class list
@@ -275,7 +275,7 @@ class Wrapper():
             except:
                 pass
             
-        obj = self.struct
+        obj = self.bstruct
         for i in range(len(parts)-1):
             try:
                 obj = getattr(obj, parts[i])
@@ -291,44 +291,44 @@ class Wrapper():
         
     @property
     def is_animated(self):
-        return blender.is_animated(self.struct)
+        return blender.is_animated(self.bstruct)
         
     @property
     def animation(self):
-        return blender.animation_data(self.struct)
+        return blender.animation_data(self.bstruct)
         
     @property
     def action(self):
-        return blender.animation_action(self.struct)
+        return blender.animation_action(self.bstruct)
     
     @property
     def fcurves(self):
-        return blender.get_fcurves(self.struct)
+        return blender.get_fcurves(self.bstruct)
     
     def get_fcurve(self, name):
-        return blender.get_fcurve(self.struct, name)
+        return blender.get_fcurve(self.bstruct, name)
     
     def new_curve(self, name):
-        return blender.new_curve(self.struct, name)
+        return blender.new_curve(self.bstruct, name)
     
     def set_fcurve(self, name, fcurve):
-        blender.set_fcurve(self.struct, name, fcurve)
+        blender.set_fcurve(self.bstruct, name, fcurve)
     
     # ---------------------------------------------------------------------------
     # Delete key frames
     
     def kf_delete(self, name, frame0=None, frame1=None):
-        blender.kf_delete(self.struct, name, frame0, frame1)
+        blender.kf_delete(self.bstruct, name, frame0, frame1)
     
     # ---------------------------------------------------------------------------
     # Set a key frame at a given frame
     
     # Shortcut for keyframes
     def kf_insert(self, name, frame, value):
-        blender.kf_insert(self.struct, name, frame, value)
+        blender.kf_insert(self.bstruct, name, frame, value)
         
     def kf_interval(self, name, frame0, frame1, value0, value1, interpolation='LINEAR'):
-        blender.kf_interval(self.struct, name, frame0, frame1, value0, value1, interpolation)
+        blender.kf_interval(self.bstruct, name, frame0, frame1, value0, value1, interpolation)
             
 # *****************************************************************************************************************************
 # Enrich WObject with usefull methods

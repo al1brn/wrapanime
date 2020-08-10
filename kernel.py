@@ -83,6 +83,23 @@ class TimeInterval():
     def __repr__(self):
         return f"TimeInterval [{self.t0} - {self.t1}]"
     
+    @property
+    def time0(self):
+        return self.t0.time
+    
+    @property
+    def time1(self):
+        return self.t1.time
+    
+    @property
+    def frame0(self):
+        return self.t0.frame
+    
+    @property
+    def frame1(self):
+        return self.t1.frame
+    
+    
     @staticmethod
     def FullAnimation():
         scene = bpy.context.scene
