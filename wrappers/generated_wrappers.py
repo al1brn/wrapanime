@@ -1,9 +1,10 @@
 # ****************************************************************************************************
-# Generated 2020-08-02
+# Generated 2020-08-10
 
 import numpy as np
-from wrapanime.wrappers.root import to_array, ArrayOf, Wrapper, CollWrapper, to_array, WObjectRoot, WMeshRoot, WSplineRoot, WSplinesRoot
+from wrapanime.wrappers.root import Wrapper, to_array, WObjectRoot, WMeshRoot, WSplineRoot, WSplinesRoot
 from wrapanime.utils.errors import WrapException
+import bpy
 
 #================================================================================
 # MeshVertex class wrapper
@@ -11,123 +12,123 @@ from wrapanime.utils.errors import WrapException
 class WMeshVertex(Wrapper):
 
     @property
+    def vertex(self): # The wrapped Blender vertex
+        return self.root_wrapper.top_obj.data.vertices[self.windex]
+
+    @property
+    def bstruct(self): # The wrapped Blender vertex
+        return self.root_wrapper.top_obj.data.vertices[self.windex]
+
+    @property
     def bevel_weight(self): # float
-        return self.obj.bevel_weight
+        return self.vertex.bevel_weight
 
     @bevel_weight.setter
     def bevel_weight(self, value): # float
-        self.obj.bevel_weight = value
+        self.vertex.bevel_weight = value
 
     @property
     def co(self): # V3
-        return self.obj.co
+        return self.vertex.co
 
     @property
     def x(self):
-        return self.obj.co[0]
+        return self.vertex.co[0]
 
     @property
     def y(self):
-        return self.obj.co[1]
+        return self.vertex.co[1]
 
     @property
     def z(self):
-        return self.obj.co[2]
+        return self.vertex.co[2]
 
     @co.setter
     def co(self, value): # V3
-        self.obj.co = to_array(value, (3,), "co")
+        self.vertex.co = to_array(value, (3,), "co")
 
     @x.setter
     def x(self, value):
-        self.obj.co[0] = value
+        self.vertex.co[0] = value
 
     @y.setter
     def y(self, value):
-        self.obj.co[1] = value
+        self.vertex.co[1] = value
 
     @z.setter
     def z(self, value):
-        self.obj.co[2] = value
+        self.vertex.co[2] = value
 
     @property
     def hide(self): # bool
-        return self.obj.hide
+        return self.vertex.hide
 
     @hide.setter
     def hide(self, value): # bool
-        self.obj.hide = value
+        self.vertex.hide = value
 
     @property
     def index(self): # int
-        return self.obj.index
+        return self.vertex.index
 
     @property
     def normal(self): # V3
-        return self.obj.normal
+        return self.vertex.normal
 
     @property
     def nx(self):
-        return self.obj.normal[0]
+        return self.vertex.normal[0]
 
     @property
     def ny(self):
-        return self.obj.normal[1]
+        return self.vertex.normal[1]
 
     @property
     def nz(self):
-        return self.obj.normal[2]
+        return self.vertex.normal[2]
 
     @property
     def undeformed_co(self): # V3
-        return self.obj.undeformed_co
+        return self.vertex.undeformed_co
 
 #================================================================================
 # Array of WMeshVertices
 
-class WMeshVertices(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WMeshVertex)
-        self._cache_bevel_weights           = None
-        self._cache_cos                     = None
-        self._cache_hides                   = None
-        self._cache_indices                 = None
-        self._cache_normals                 = None
-        self._cache_undeformed_cos          = None
+class WMeshVertices(Wrapper):
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_bevel_weights           = None
-        self._cache_cos                     = None
-        self._cache_hides                   = None
-        self._cache_indices                 = None
-        self._cache_normals                 = None
-        self._cache_undeformed_cos          = None
+    @property
+    def vertices(self): # The wrapped Blender vertices
+        return self.root_wrapper.top_obj.data.vertices
+
+    def __len__(self):
+        return len(self.root_wrapper.top_obj.data.vertices)
+
+    def __getitem__(self, index):
+        return WMeshVertex(self.root_wrapper, index=index)
+
+    @property
+    def item_class(self):
+        return WMeshVertex
 
     @property
     def bevel_weights(self): # Array of float
-        if self._cache_bevel_weights is None:
-            self._cache_bevel_weights = np.empty(len(self), np.float)
-            self.coll.foreach_get('bevel_weight', self._cache_bevel_weights)
-        return self._cache_bevel_weights
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.vertices.foreach_get('bevel_weight', array)
+        return array
 
     @bevel_weights.setter
     def bevel_weights(self, values): # Arrayf of float
-        self._cache_bevel_weights = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('bevel_weight', self._cache_bevel_weights)
+        self.root_wrapper.top_obj.data.vertices.foreach_set('bevel_weight', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def cos(self): # Array of V3
-        if self._cache_cos is None:
-            self._cache_cos = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('co', self._cache_cos)
-            self._cache_cos = self._cache_cos.reshape(len(self), 3)
-        return self._cache_cos
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.vertices.foreach_get('co', array)
+        return array.reshape(len(self), 3)
 
     @cos.setter
     def cos(self, values): # Arrayf of V3
-        self._cache_cos = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('co', self._cache_cos.reshape(len(self) * 3))
+        self.root_wrapper.top_obj.data.vertices.foreach_set('co', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     # xyzw access to cos
 
@@ -137,8 +138,9 @@ class WMeshVertices(CollWrapper):
 
     @xs.setter
     def xs(self, values):
-        self.cos[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def ys(self): 
@@ -146,8 +148,9 @@ class WMeshVertices(CollWrapper):
 
     @ys.setter
     def ys(self, values):
-        self.cos[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def zs(self): 
@@ -155,35 +158,31 @@ class WMeshVertices(CollWrapper):
 
     @zs.setter
     def zs(self, values):
-        self.cos[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def hides(self): # Array of bool
-        if self._cache_hides is None:
-            self._cache_hides = np.empty(len(self), np.bool)
-            self.coll.foreach_get('hide', self._cache_hides)
-        return self._cache_hides
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.vertices.foreach_get('hide', array)
+        return array
 
     @hides.setter
     def hides(self, values): # Arrayf of bool
-        self._cache_hides = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('hide', self._cache_hides)
+        self.root_wrapper.top_obj.data.vertices.foreach_set('hide', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def indices(self): # Array of int
-        if self._cache_indices is None:
-            self._cache_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('index', self._cache_indices)
-        return self._cache_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.vertices.foreach_get('index', array)
+        return array
 
     @property
     def normals(self): # Array of V3
-        if self._cache_normals is None:
-            self._cache_normals = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('normal', self._cache_normals)
-            self._cache_normals = self._cache_normals.reshape(len(self), 3)
-        return self._cache_normals
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.vertices.foreach_get('normal', array)
+        return array.reshape(len(self), 3)
 
     # xyzw access to normals
 
@@ -201,11 +200,9 @@ class WMeshVertices(CollWrapper):
 
     @property
     def undeformed_cos(self): # Array of V3
-        if self._cache_undeformed_cos is None:
-            self._cache_undeformed_cos = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('undeformed_co', self._cache_undeformed_cos)
-            self._cache_undeformed_cos = self._cache_undeformed_cos.reshape(len(self), 3)
-        return self._cache_undeformed_cos
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.vertices.foreach_get('undeformed_co', array)
+        return array.reshape(len(self), 3)
 
 #================================================================================
 # Edge class wrapper
@@ -213,176 +210,163 @@ class WMeshVertices(CollWrapper):
 class WEdge(Wrapper):
 
     @property
+    def edge(self): # The wrapped Blender edge
+        return self.root_wrapper.top_obj.data.edges[self.windex]
+
+    @property
+    def bstruct(self): # The wrapped Blender edge
+        return self.root_wrapper.top_obj.data.edges[self.windex]
+
+    @property
     def bevel_weight(self): # float
-        return self.obj.bevel_weight
+        return self.edge.bevel_weight
 
     @bevel_weight.setter
     def bevel_weight(self, value): # float
-        self.obj.bevel_weight = value
+        self.edge.bevel_weight = value
 
     @property
     def crease(self): # float
-        return self.obj.crease
+        return self.edge.crease
 
     @crease.setter
     def crease(self, value): # float
-        self.obj.crease = value
+        self.edge.crease = value
 
     @property
     def hide(self): # bool
-        return self.obj.hide
+        return self.edge.hide
 
     @hide.setter
     def hide(self, value): # bool
-        self.obj.hide = value
+        self.edge.hide = value
 
     @property
     def index(self): # int
-        return self.obj.index
+        return self.edge.index
 
     @property
     def is_loose(self): # bool
-        return self.obj.is_loose
+        return self.edge.is_loose
 
     @property
     def select(self): # bool
-        return self.obj.select
+        return self.edge.select
 
     @select.setter
     def select(self, value): # bool
-        self.obj.select = value
+        self.edge.select = value
 
     @property
     def use_edge_sharp(self): # bool
-        return self.obj.use_edge_sharp
+        return self.edge.use_edge_sharp
 
     @use_edge_sharp.setter
     def use_edge_sharp(self, value): # bool
-        self.obj.use_edge_sharp = value
+        self.edge.use_edge_sharp = value
 
     @property
     def use_seam(self): # bool
-        return self.obj.use_seam
+        return self.edge.use_seam
 
     @use_seam.setter
     def use_seam(self, value): # bool
-        self.obj.use_seam = value
+        self.edge.use_seam = value
 
     @property
     def vertices(self): # array
-        return self.obj.vertices
+        return self.edge.vertices
 
 #================================================================================
 # Array of WEdges
 
-class WEdges(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WEdge)
-        self._cache_bevel_weights           = None
-        self._cache_creases                 = None
-        self._cache_hides                   = None
-        self._cache_indices                 = None
-        self._cache_is_looses               = None
-        self._cache_selects                 = None
-        self._cache_use_edge_sharps         = None
-        self._cache_use_seams               = None
+class WEdges(Wrapper):
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_bevel_weights           = None
-        self._cache_creases                 = None
-        self._cache_hides                   = None
-        self._cache_indices                 = None
-        self._cache_is_looses               = None
-        self._cache_selects                 = None
-        self._cache_use_edge_sharps         = None
-        self._cache_use_seams               = None
+    @property
+    def edges(self): # The wrapped Blender edges
+        return self.root_wrapper.top_obj.data.edges
+
+    def __len__(self):
+        return len(self.root_wrapper.top_obj.data.edges)
+
+    def __getitem__(self, index):
+        return WEdge(self.root_wrapper, index=index)
+
+    @property
+    def item_class(self):
+        return WEdge
 
     @property
     def bevel_weights(self): # Array of float
-        if self._cache_bevel_weights is None:
-            self._cache_bevel_weights = np.empty(len(self), np.float)
-            self.coll.foreach_get('bevel_weight', self._cache_bevel_weights)
-        return self._cache_bevel_weights
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.edges.foreach_get('bevel_weight', array)
+        return array
 
     @bevel_weights.setter
     def bevel_weights(self, values): # Arrayf of float
-        self._cache_bevel_weights = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('bevel_weight', self._cache_bevel_weights)
+        self.root_wrapper.top_obj.data.edges.foreach_set('bevel_weight', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def creases(self): # Array of float
-        if self._cache_creases is None:
-            self._cache_creases = np.empty(len(self), np.float)
-            self.coll.foreach_get('crease', self._cache_creases)
-        return self._cache_creases
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.edges.foreach_get('crease', array)
+        return array
 
     @creases.setter
     def creases(self, values): # Arrayf of float
-        self._cache_creases = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('crease', self._cache_creases)
+        self.root_wrapper.top_obj.data.edges.foreach_set('crease', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def hides(self): # Array of bool
-        if self._cache_hides is None:
-            self._cache_hides = np.empty(len(self), np.bool)
-            self.coll.foreach_get('hide', self._cache_hides)
-        return self._cache_hides
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.edges.foreach_get('hide', array)
+        return array
 
     @hides.setter
     def hides(self, values): # Arrayf of bool
-        self._cache_hides = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('hide', self._cache_hides)
+        self.root_wrapper.top_obj.data.edges.foreach_set('hide', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def indices(self): # Array of int
-        if self._cache_indices is None:
-            self._cache_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('index', self._cache_indices)
-        return self._cache_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.edges.foreach_get('index', array)
+        return array
 
     @property
     def is_looses(self): # Array of bool
-        if self._cache_is_looses is None:
-            self._cache_is_looses = np.empty(len(self), np.bool)
-            self.coll.foreach_get('is_loose', self._cache_is_looses)
-        return self._cache_is_looses
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.edges.foreach_get('is_loose', array)
+        return array
 
     @property
     def selects(self): # Array of bool
-        if self._cache_selects is None:
-            self._cache_selects = np.empty(len(self), np.bool)
-            self.coll.foreach_get('select', self._cache_selects)
-        return self._cache_selects
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.edges.foreach_get('select', array)
+        return array
 
     @selects.setter
     def selects(self, values): # Arrayf of bool
-        self._cache_selects = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('select', self._cache_selects)
+        self.root_wrapper.top_obj.data.edges.foreach_set('select', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_edge_sharps(self): # Array of bool
-        if self._cache_use_edge_sharps is None:
-            self._cache_use_edge_sharps = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_edge_sharp', self._cache_use_edge_sharps)
-        return self._cache_use_edge_sharps
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.edges.foreach_get('use_edge_sharp', array)
+        return array
 
     @use_edge_sharps.setter
     def use_edge_sharps(self, values): # Arrayf of bool
-        self._cache_use_edge_sharps = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_edge_sharp', self._cache_use_edge_sharps)
+        self.root_wrapper.top_obj.data.edges.foreach_set('use_edge_sharp', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_seams(self): # Array of bool
-        if self._cache_use_seams is None:
-            self._cache_use_seams = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_seam', self._cache_use_seams)
-        return self._cache_use_seams
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.edges.foreach_get('use_seam', array)
+        return array
 
     @use_seams.setter
     def use_seams(self, values): # Arrayf of bool
-        self._cache_use_seams = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_seam', self._cache_use_seams)
+        self.root_wrapper.top_obj.data.edges.foreach_set('use_seam', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
 #================================================================================
 # Loop class wrapper
@@ -390,108 +374,101 @@ class WEdges(CollWrapper):
 class WLoop(Wrapper):
 
     @property
+    def loop(self): # The wrapped Blender loop
+        return self.root_wrapper.top_obj.data.loops[self.windex]
+
+    @property
+    def bstruct(self): # The wrapped Blender loop
+        return self.root_wrapper.top_obj.data.loops[self.windex]
+
+    @property
     def bitangent_sign(self): # float
-        return self.obj.bitangent_sign
+        return self.loop.bitangent_sign
 
     @property
     def bitangent(self): # V3
-        return self.obj.bitangent
+        return self.loop.bitangent
 
     @property
     def edge_index(self): # int
-        return self.obj.edge_index
+        return self.loop.edge_index
 
     @property
     def index(self): # int
-        return self.obj.index
+        return self.loop.index
 
     @property
     def normal(self): # V3
-        return self.obj.normal
+        return self.loop.normal
 
     @property
     def tangent(self): # V3
-        return self.obj.tangent
+        return self.loop.tangent
 
     @property
     def vertex_index(self): # int
-        return self.obj.vertex_index
+        return self.loop.vertex_index
 
 #================================================================================
 # Array of WLoops
 
-class WLoops(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WLoop)
-        self._cache_bitangent_signs         = None
-        self._cache_bitangents              = None
-        self._cache_edge_indices            = None
-        self._cache_indices                 = None
-        self._cache_normals                 = None
-        self._cache_tangents                = None
-        self._cache_vertex_indices          = None
+class WLoops(Wrapper):
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_bitangent_signs         = None
-        self._cache_bitangents              = None
-        self._cache_edge_indices            = None
-        self._cache_indices                 = None
-        self._cache_normals                 = None
-        self._cache_tangents                = None
-        self._cache_vertex_indices          = None
+    @property
+    def loops(self): # The wrapped Blender loops
+        return self.root_wrapper.top_obj.data.loops
+
+    def __len__(self):
+        return len(self.root_wrapper.top_obj.data.loops)
+
+    def __getitem__(self, index):
+        return WLoop(self.root_wrapper, index=index)
+
+    @property
+    def item_class(self):
+        return WLoop
 
     @property
     def bitangent_signs(self): # Array of float
-        if self._cache_bitangent_signs is None:
-            self._cache_bitangent_signs = np.empty(len(self), np.float)
-            self.coll.foreach_get('bitangent_sign', self._cache_bitangent_signs)
-        return self._cache_bitangent_signs
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.loops.foreach_get('bitangent_sign', array)
+        return array
 
     @property
     def bitangents(self): # Array of V3
-        if self._cache_bitangents is None:
-            self._cache_bitangents = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('bitangent', self._cache_bitangents)
-            self._cache_bitangents = self._cache_bitangents.reshape(len(self), 3)
-        return self._cache_bitangents
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.loops.foreach_get('bitangent', array)
+        return array.reshape(len(self), 3)
 
     @property
     def edge_indices(self): # Array of int
-        if self._cache_edge_indices is None:
-            self._cache_edge_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('edge_index', self._cache_edge_indices)
-        return self._cache_edge_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.loops.foreach_get('edge_index', array)
+        return array
 
     @property
     def indices(self): # Array of int
-        if self._cache_indices is None:
-            self._cache_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('index', self._cache_indices)
-        return self._cache_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.loops.foreach_get('index', array)
+        return array
 
     @property
     def normals(self): # Array of V3
-        if self._cache_normals is None:
-            self._cache_normals = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('normal', self._cache_normals)
-            self._cache_normals = self._cache_normals.reshape(len(self), 3)
-        return self._cache_normals
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.loops.foreach_get('normal', array)
+        return array.reshape(len(self), 3)
 
     @property
     def tangents(self): # Array of V3
-        if self._cache_tangents is None:
-            self._cache_tangents = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('tangent', self._cache_tangents)
-            self._cache_tangents = self._cache_tangents.reshape(len(self), 3)
-        return self._cache_tangents
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.loops.foreach_get('tangent', array)
+        return array.reshape(len(self), 3)
 
     @property
     def vertex_indices(self): # Array of int
-        if self._cache_vertex_indices is None:
-            self._cache_vertex_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('vertex_index', self._cache_vertex_indices)
-        return self._cache_vertex_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.loops.foreach_get('vertex_index', array)
+        return array
 
 #================================================================================
 # Polygon class wrapper
@@ -499,274 +476,201 @@ class WLoops(CollWrapper):
 class WPolygon(Wrapper):
 
     @property
+    def polygons(self): # The wrapped Blender polygons
+        return self.root_wrapper.top_obj.data.polygons[self.windex]
+
+    @property
+    def bstruct(self): # The wrapped Blender polygons
+        return self.root_wrapper.top_obj.data.polygons[self.windex]
+
+    @property
     def area(self): # float
-        return self.obj.area
+        return self.polygons.area
 
     @property
     def center(self): # V3
-        return self.obj.center
+        return self.polygons.center
 
     @property
     def hide(self): # bool
-        return self.obj.hide
+        return self.polygons.hide
 
     @hide.setter
     def hide(self, value): # bool
-        self.obj.hide = value
+        self.polygons.hide = value
 
     @property
     def index(self): # int
-        return self.obj.index
+        return self.polygons.index
 
     @property
     def loop_start(self): # int
-        return self.obj.loop_start
+        return self.polygons.loop_start
 
     @property
     def loop_total(self): # int
-        return self.obj.loop_total
+        return self.polygons.loop_total
 
     @property
     def material_index(self): # int
-        return self.obj.material_index
+        return self.polygons.material_index
 
     @material_index.setter
     def material_index(self, value): # int
-        self.obj.material_index = value
+        self.polygons.material_index = value
 
     @property
     def normal(self): # V3
-        return self.obj.normal
+        return self.polygons.normal
 
     @property
     def use_smooth(self): # bool
-        return self.obj.use_smooth
+        return self.polygons.use_smooth
 
     @use_smooth.setter
     def use_smooth(self, value): # bool
-        self.obj.use_smooth = value
+        self.polygons.use_smooth = value
 
     @property
     def vertices(self): # array
-        return self.obj.vertices
+        return self.polygons.vertices
 
 #================================================================================
 # Array of WPolygons
 
-class WPolygons(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WPolygon)
-        self._cache_areas                   = None
-        self._cache_centers                 = None
-        self._cache_hides                   = None
-        self._cache_indices                 = None
-        self._cache_loop_starts             = None
-        self._cache_loop_totals             = None
-        self._cache_material_indices        = None
-        self._cache_normals                 = None
-        self._cache_use_smooths             = None
+class WPolygons(Wrapper):
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_areas                   = None
-        self._cache_centers                 = None
-        self._cache_hides                   = None
-        self._cache_indices                 = None
-        self._cache_loop_starts             = None
-        self._cache_loop_totals             = None
-        self._cache_material_indices        = None
-        self._cache_normals                 = None
-        self._cache_use_smooths             = None
+    @property
+    def polygons(self): # The wrapped Blender polygons
+        return self.root_wrapper.top_obj.data.polygons
+
+    def __len__(self):
+        return len(self.root_wrapper.top_obj.data.polygons)
+
+    def __getitem__(self, index):
+        return WPolygon(self.root_wrapper, index=index)
+
+    @property
+    def item_class(self):
+        return WPolygon
 
     @property
     def areas(self): # Array of float
-        if self._cache_areas is None:
-            self._cache_areas = np.empty(len(self), np.float)
-            self.coll.foreach_get('area', self._cache_areas)
-        return self._cache_areas
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('area', array)
+        return array
 
     @property
     def centers(self): # Array of V3
-        if self._cache_centers is None:
-            self._cache_centers = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('center', self._cache_centers)
-            self._cache_centers = self._cache_centers.reshape(len(self), 3)
-        return self._cache_centers
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('center', array)
+        return array.reshape(len(self), 3)
 
     @property
     def hides(self): # Array of bool
-        if self._cache_hides is None:
-            self._cache_hides = np.empty(len(self), np.bool)
-            self.coll.foreach_get('hide', self._cache_hides)
-        return self._cache_hides
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('hide', array)
+        return array
 
     @hides.setter
     def hides(self, values): # Arrayf of bool
-        self._cache_hides = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('hide', self._cache_hides)
+        self.root_wrapper.top_obj.data.polygons.foreach_set('hide', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def indices(self): # Array of int
-        if self._cache_indices is None:
-            self._cache_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('index', self._cache_indices)
-        return self._cache_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('index', array)
+        return array
 
     @property
     def loop_starts(self): # Array of int
-        if self._cache_loop_starts is None:
-            self._cache_loop_starts = np.empty(len(self), np.int)
-            self.coll.foreach_get('loop_start', self._cache_loop_starts)
-        return self._cache_loop_starts
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('loop_start', array)
+        return array
 
     @property
     def loop_totals(self): # Array of int
-        if self._cache_loop_totals is None:
-            self._cache_loop_totals = np.empty(len(self), np.int)
-            self.coll.foreach_get('loop_total', self._cache_loop_totals)
-        return self._cache_loop_totals
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('loop_total', array)
+        return array
 
     @property
     def material_indices(self): # Array of int
-        if self._cache_material_indices is None:
-            self._cache_material_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('material_index', self._cache_material_indices)
-        return self._cache_material_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('material_index', array)
+        return array
 
     @material_indices.setter
     def material_indices(self, values): # Arrayf of int
-        self._cache_material_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('material_index', self._cache_material_indices)
+        self.root_wrapper.top_obj.data.polygons.foreach_set('material_index', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def normals(self): # Array of V3
-        if self._cache_normals is None:
-            self._cache_normals = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('normal', self._cache_normals)
-            self._cache_normals = self._cache_normals.reshape(len(self), 3)
-        return self._cache_normals
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('normal', array)
+        return array.reshape(len(self), 3)
 
     @property
     def use_smooths(self): # Array of bool
-        if self._cache_use_smooths is None:
-            self._cache_use_smooths = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_smooth', self._cache_use_smooths)
-        return self._cache_use_smooths
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.polygons.foreach_get('use_smooth', array)
+        return array
 
     @use_smooths.setter
     def use_smooths(self, values): # Arrayf of bool
-        self._cache_use_smooths = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_smooth', self._cache_use_smooths)
+        self.root_wrapper.top_obj.data.polygons.foreach_set('use_smooth', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
 #================================================================================
 # Mesh class wrapper
 
 class WMesh(WMeshRoot):
 
-    def __init__(self, obj, wowner):
-        super().__init__(obj, wowner)
-        self.wvertices = WMeshVertices(self.obj.vertices, self)
-        self.wedges    = WEdges(self.obj.edges, self)
-        self.wloops    = WLoops(self.obj.loops, self)
-        self.wpolygons = WPolygons(self.obj.polygons, self)
+    def __init__(self, root_wrapper):
+        super().__init__(root_wrapper)
+        self.wvertices = WMeshVertices(self.root_wrapper)
+        self.wedges    = WEdges(self.root_wrapper)
+        self.wloops    = WLoops(self.root_wrapper)
+        self.wpolygons = WPolygons(self.root_wrapper)
+
+    @property
+    def mesh(self): # The wrapped Blender mesh
+        return self.root_wrapper.top_obj.data
+
+    @property
+    def bstruct(self): # The wrapped Blender mesh
+        return self.root_wrapper.top_obj.data
 
     @property
     def auto_smooth_angle(self): # float
-        return self.obj.auto_smooth_angle
+        return self.mesh.auto_smooth_angle
 
     @auto_smooth_angle.setter
     def auto_smooth_angle(self, value): # float
-        self.obj.auto_smooth_angle = value
+        self.mesh.auto_smooth_angle = value
 
     @property
     def auto_texspace(self): # bool
-        return self.obj.auto_texspace
+        return self.mesh.auto_texspace
 
     @auto_texspace.setter
     def auto_texspace(self, value): # bool
-        self.obj.auto_texspace = value
+        self.mesh.auto_texspace = value
 
     @property
     def use_auto_smooth(self): # bool
-        return self.obj.use_auto_smooth
+        return self.mesh.use_auto_smooth
 
     @use_auto_smooth.setter
     def use_auto_smooth(self, value): # bool
-        self.obj.use_auto_smooth = value
+        self.mesh.use_auto_smooth = value
 
     @property
     def use_auto_texspace(self): # bool
-        return self.obj.use_auto_texspace
+        return self.mesh.use_auto_texspace
 
     @use_auto_texspace.setter
     def use_auto_texspace(self, value): # bool
-        self.obj.use_auto_texspace = value
-
-#================================================================================
-# Array of WMeshs
-
-class WMeshs(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WMesh)
-        self._cache_auto_smooth_angles      = None
-        self._cache_auto_texspaces          = None
-        self._cache_use_auto_smooths        = None
-        self._cache_use_auto_texspaces      = None
-
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_auto_smooth_angles      = None
-        self._cache_auto_texspaces          = None
-        self._cache_use_auto_smooths        = None
-        self._cache_use_auto_texspaces      = None
-
-    @property
-    def auto_smooth_angles(self): # Array of float
-        if self._cache_auto_smooth_angles is None:
-            self._cache_auto_smooth_angles = np.empty(len(self), np.float)
-            self.coll.foreach_get('auto_smooth_angle', self._cache_auto_smooth_angles)
-        return self._cache_auto_smooth_angles
-
-    @auto_smooth_angles.setter
-    def auto_smooth_angles(self, values): # Arrayf of float
-        self._cache_auto_smooth_angles = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('auto_smooth_angle', self._cache_auto_smooth_angles)
-
-    @property
-    def auto_texspaces(self): # Array of bool
-        if self._cache_auto_texspaces is None:
-            self._cache_auto_texspaces = np.empty(len(self), np.bool)
-            self.coll.foreach_get('auto_texspace', self._cache_auto_texspaces)
-        return self._cache_auto_texspaces
-
-    @auto_texspaces.setter
-    def auto_texspaces(self, values): # Arrayf of bool
-        self._cache_auto_texspaces = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('auto_texspace', self._cache_auto_texspaces)
-
-    @property
-    def use_auto_smooths(self): # Array of bool
-        if self._cache_use_auto_smooths is None:
-            self._cache_use_auto_smooths = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_auto_smooth', self._cache_use_auto_smooths)
-        return self._cache_use_auto_smooths
-
-    @use_auto_smooths.setter
-    def use_auto_smooths(self, values): # Arrayf of bool
-        self._cache_use_auto_smooths = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_auto_smooth', self._cache_use_auto_smooths)
-
-    @property
-    def use_auto_texspaces(self): # Array of bool
-        if self._cache_use_auto_texspaces is None:
-            self._cache_use_auto_texspaces = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_auto_texspace', self._cache_use_auto_texspaces)
-        return self._cache_use_auto_texspaces
-
-    @use_auto_texspaces.setter
-    def use_auto_texspaces(self, values): # Arrayf of bool
-        self._cache_use_auto_texspaces = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_auto_texspace', self._cache_use_auto_texspaces)
+        self.mesh.use_auto_texspace = value
 
 #================================================================================
 # BezierSplinePoint class wrapper
@@ -774,189 +678,185 @@ class WMeshs(CollWrapper):
 class WBezierSplinePoint(Wrapper):
 
     @property
+    def bezier_point(self): # The wrapped Blender bezier_point
+        return self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points[self.windex]
+
+    @property
+    def bstruct(self): # The wrapped Blender bezier_point
+        return self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points[self.windex]
+
+    @property
     def co(self): # V3
-        return self.obj.co
+        return self.bezier_point.co
 
     @property
     def x(self):
-        return self.obj.co[0]
+        return self.bezier_point.co[0]
 
     @property
     def y(self):
-        return self.obj.co[1]
+        return self.bezier_point.co[1]
 
     @property
     def z(self):
-        return self.obj.co[2]
+        return self.bezier_point.co[2]
 
     @co.setter
     def co(self, value): # V3
-        self.obj.co = to_array(value, (3,), "co")
+        self.bezier_point.co = to_array(value, (3,), "co")
 
     @x.setter
     def x(self, value):
-        self.obj.co[0] = value
+        self.bezier_point.co[0] = value
 
     @y.setter
     def y(self, value):
-        self.obj.co[1] = value
+        self.bezier_point.co[1] = value
 
     @z.setter
     def z(self, value):
-        self.obj.co[2] = value
+        self.bezier_point.co[2] = value
 
     @property
     def handle_left_type(self): # str
-        return self.obj.handle_left_type
+        return self.bezier_point.handle_left_type
 
     @handle_left_type.setter
     def handle_left_type(self, value): # str
-        self.obj.handle_left_type = value
+        self.bezier_point.handle_left_type = value
 
     @property
     def handle_left(self): # V3
-        return self.obj.handle_left
+        return self.bezier_point.handle_left
 
     @property
     def lx(self):
-        return self.obj.handle_left[0]
+        return self.bezier_point.handle_left[0]
 
     @property
     def ly(self):
-        return self.obj.handle_left[1]
+        return self.bezier_point.handle_left[1]
 
     @property
     def lz(self):
-        return self.obj.handle_left[2]
+        return self.bezier_point.handle_left[2]
 
     @handle_left.setter
     def handle_left(self, value): # V3
-        self.obj.handle_left = to_array(value, (3,), "handle_left")
+        self.bezier_point.handle_left = to_array(value, (3,), "handle_left")
 
     @lx.setter
     def lx(self, value):
-        self.obj.handle_left[0] = value
+        self.bezier_point.handle_left[0] = value
 
     @ly.setter
     def ly(self, value):
-        self.obj.handle_left[1] = value
+        self.bezier_point.handle_left[1] = value
 
     @lz.setter
     def lz(self, value):
-        self.obj.handle_left[2] = value
+        self.bezier_point.handle_left[2] = value
 
     @property
     def handle_right_type(self): # str
-        return self.obj.handle_right_type
+        return self.bezier_point.handle_right_type
 
     @handle_right_type.setter
     def handle_right_type(self, value): # str
-        self.obj.handle_right_type = value
+        self.bezier_point.handle_right_type = value
 
     @property
     def handle_right(self): # V3
-        return self.obj.handle_right
+        return self.bezier_point.handle_right
 
     @property
     def rx(self):
-        return self.obj.handle_right[0]
+        return self.bezier_point.handle_right[0]
 
     @property
     def ry(self):
-        return self.obj.handle_right[1]
+        return self.bezier_point.handle_right[1]
 
     @property
     def rz(self):
-        return self.obj.handle_right[2]
+        return self.bezier_point.handle_right[2]
 
     @handle_right.setter
     def handle_right(self, value): # V3
-        self.obj.handle_right = to_array(value, (3,), "handle_right")
+        self.bezier_point.handle_right = to_array(value, (3,), "handle_right")
 
     @rx.setter
     def rx(self, value):
-        self.obj.handle_right[0] = value
+        self.bezier_point.handle_right[0] = value
 
     @ry.setter
     def ry(self, value):
-        self.obj.handle_right[1] = value
+        self.bezier_point.handle_right[1] = value
 
     @rz.setter
     def rz(self, value):
-        self.obj.handle_right[2] = value
+        self.bezier_point.handle_right[2] = value
 
     @property
     def hide(self): # bool
-        return self.obj.hide
+        return self.bezier_point.hide
 
     @hide.setter
     def hide(self, value): # bool
-        self.obj.hide = value
+        self.bezier_point.hide = value
 
     @property
     def radius(self): # float
-        return self.obj.radius
+        return self.bezier_point.radius
 
     @radius.setter
     def radius(self, value): # float
-        self.obj.radius = value
+        self.bezier_point.radius = value
 
     @property
     def tilt(self): # int
-        return self.obj.tilt
+        return self.bezier_point.tilt
 
     @tilt.setter
     def tilt(self, value): # int
-        self.obj.tilt = value
+        self.bezier_point.tilt = value
 
     @property
     def weight_softbody(self): # float
-        return self.obj.weight_softbody
+        return self.bezier_point.weight_softbody
 
     @weight_softbody.setter
     def weight_softbody(self, value): # float
-        self.obj.weight_softbody = value
+        self.bezier_point.weight_softbody = value
 
 #================================================================================
 # Array of WBezierSplinePoints
 
-class WBezierSplinePoints(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WBezierSplinePoint)
-        self._cache_cos                     = None
-        self._cache_handle_left_types       = None
-        self._cache_handle_lefts            = None
-        self._cache_handle_right_types      = None
-        self._cache_handle_rights           = None
-        self._cache_hides                   = None
-        self._cache_radius_s                = None
-        self._cache_tilts                   = None
-        self._cache_weight_softbodys        = None
+class WBezierSplinePoints(Wrapper):
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_cos                     = None
-        self._cache_handle_left_types       = None
-        self._cache_handle_lefts            = None
-        self._cache_handle_right_types      = None
-        self._cache_handle_rights           = None
-        self._cache_hides                   = None
-        self._cache_radius_s                = None
-        self._cache_tilts                   = None
-        self._cache_weight_softbodys        = None
+    @property
+    def bezier_points(self): # The wrapped Blender bezier_points
+        return self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points
+
+    def __len__(self):
+        return len(self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points)
+
+    def __getitem__(self, index):
+        return WBezierSplinePoint(self.root_wrapper, wowner=self, index=index)
+
+    @property
+    def item_class(self):
+        return WBezierSplinePoint
 
     @property
     def cos(self): # Array of V3
-        if self._cache_cos is None:
-            self._cache_cos = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('co', self._cache_cos)
-            self._cache_cos = self._cache_cos.reshape(len(self), 3)
-        return self._cache_cos
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_get('co', array)
+        return array.reshape(len(self), 3)
 
     @cos.setter
     def cos(self, values): # Arrayf of V3
-        self._cache_cos = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('co', self._cache_cos.reshape(len(self) * 3))
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_set('co', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     # xyzw access to cos
 
@@ -966,8 +866,9 @@ class WBezierSplinePoints(CollWrapper):
 
     @xs.setter
     def xs(self, values):
-        self.cos[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def ys(self): 
@@ -975,8 +876,9 @@ class WBezierSplinePoints(CollWrapper):
 
     @ys.setter
     def ys(self, values):
-        self.cos[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def zs(self): 
@@ -984,35 +886,34 @@ class WBezierSplinePoints(CollWrapper):
 
     @zs.setter
     def zs(self, values):
-        self.cos[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def handle_left_types(self): # Array of str
-        if self._cache_handle_left_types is None:
-            self._cache_handle_left_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_handle_left_types[i] = self[i].handle_left_type
-        return self._cache_handle_left_types
+        array = np.empty(len(self), np.object)
+        coll = self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points
+        for i in range(len(self)):
+            array[i] = coll[i].handle_left_type
+        return array
 
     @handle_left_types.setter
     def handle_left_types(self, values): # Arrayf of str
-        self._cache_handle_left_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points
         for i in range(len(self)):
-            self[i].handle_left_type = self._cache_handle_left_types[i]
+            coll[i].handle_left_type = array[i]
 
     @property
     def handle_lefts(self): # Array of V3
-        if self._cache_handle_lefts is None:
-            self._cache_handle_lefts = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('handle_left', self._cache_handle_lefts)
-            self._cache_handle_lefts = self._cache_handle_lefts.reshape(len(self), 3)
-        return self._cache_handle_lefts
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_get('handle_left', array)
+        return array.reshape(len(self), 3)
 
     @handle_lefts.setter
     def handle_lefts(self, values): # Arrayf of V3
-        self._cache_handle_lefts = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('handle_left', self._cache_handle_lefts.reshape(len(self) * 3))
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_set('handle_left', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     # xyzw access to handle_lefts
 
@@ -1022,8 +923,9 @@ class WBezierSplinePoints(CollWrapper):
 
     @lxs.setter
     def lxs(self, values):
-        self.handle_lefts[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_lefts = self._cache_handle_lefts
+        handle_lefts = self.handle_lefts
+        handle_lefts[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_lefts = handle_lefts
 
     @property
     def lys(self): 
@@ -1031,8 +933,9 @@ class WBezierSplinePoints(CollWrapper):
 
     @lys.setter
     def lys(self, values):
-        self.handle_lefts[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_lefts = self._cache_handle_lefts
+        handle_lefts = self.handle_lefts
+        handle_lefts[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_lefts = handle_lefts
 
     @property
     def lzs(self): 
@@ -1040,35 +943,34 @@ class WBezierSplinePoints(CollWrapper):
 
     @lzs.setter
     def lzs(self, values):
-        self.handle_lefts[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_lefts = self._cache_handle_lefts
+        handle_lefts = self.handle_lefts
+        handle_lefts[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_lefts = handle_lefts
 
     @property
     def handle_right_types(self): # Array of str
-        if self._cache_handle_right_types is None:
-            self._cache_handle_right_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_handle_right_types[i] = self[i].handle_right_type
-        return self._cache_handle_right_types
+        array = np.empty(len(self), np.object)
+        coll = self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points
+        for i in range(len(self)):
+            array[i] = coll[i].handle_right_type
+        return array
 
     @handle_right_types.setter
     def handle_right_types(self, values): # Arrayf of str
-        self._cache_handle_right_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points
         for i in range(len(self)):
-            self[i].handle_right_type = self._cache_handle_right_types[i]
+            coll[i].handle_right_type = array[i]
 
     @property
     def handle_rights(self): # Array of V3
-        if self._cache_handle_rights is None:
-            self._cache_handle_rights = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('handle_right', self._cache_handle_rights)
-            self._cache_handle_rights = self._cache_handle_rights.reshape(len(self), 3)
-        return self._cache_handle_rights
+        array = np.empty(len(self)*3, np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_get('handle_right', array)
+        return array.reshape(len(self), 3)
 
     @handle_rights.setter
     def handle_rights(self, values): # Arrayf of V3
-        self._cache_handle_rights = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('handle_right', self._cache_handle_rights.reshape(len(self) * 3))
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_set('handle_right', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     # xyzw access to handle_rights
 
@@ -1078,8 +980,9 @@ class WBezierSplinePoints(CollWrapper):
 
     @rxs.setter
     def rxs(self, values):
-        self.handle_rights[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_rights = self._cache_handle_rights
+        handle_rights = self.handle_rights
+        handle_rights[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_rights = handle_rights
 
     @property
     def rys(self): 
@@ -1087,8 +990,9 @@ class WBezierSplinePoints(CollWrapper):
 
     @rys.setter
     def rys(self, values):
-        self.handle_rights[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_rights = self._cache_handle_rights
+        handle_rights = self.handle_rights
+        handle_rights[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_rights = handle_rights
 
     @property
     def rzs(self): 
@@ -1096,56 +1000,49 @@ class WBezierSplinePoints(CollWrapper):
 
     @rzs.setter
     def rzs(self, values):
-        self.handle_rights[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_rights = self._cache_handle_rights
+        handle_rights = self.handle_rights
+        handle_rights[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_rights = handle_rights
 
     @property
     def hides(self): # Array of bool
-        if self._cache_hides is None:
-            self._cache_hides = np.empty(len(self), np.bool)
-            self.coll.foreach_get('hide', self._cache_hides)
-        return self._cache_hides
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_get('hide', array)
+        return array
 
     @hides.setter
     def hides(self, values): # Arrayf of bool
-        self._cache_hides = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('hide', self._cache_hides)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_set('hide', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def radius_s(self): # Array of float
-        if self._cache_radius_s is None:
-            self._cache_radius_s = np.empty(len(self), np.float)
-            self.coll.foreach_get('radius', self._cache_radius_s)
-        return self._cache_radius_s
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_get('radius', array)
+        return array
 
     @radius_s.setter
     def radius_s(self, values): # Arrayf of float
-        self._cache_radius_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('radius', self._cache_radius_s)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_set('radius', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def tilts(self): # Array of int
-        if self._cache_tilts is None:
-            self._cache_tilts = np.empty(len(self), np.int)
-            self.coll.foreach_get('tilt', self._cache_tilts)
-        return self._cache_tilts
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_get('tilt', array)
+        return array
 
     @tilts.setter
     def tilts(self, values): # Arrayf of int
-        self._cache_tilts = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('tilt', self._cache_tilts)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_set('tilt', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def weight_softbodys(self): # Array of float
-        if self._cache_weight_softbodys is None:
-            self._cache_weight_softbodys = np.empty(len(self), np.float)
-            self.coll.foreach_get('weight_softbody', self._cache_weight_softbodys)
-        return self._cache_weight_softbodys
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_get('weight_softbody', array)
+        return array
 
     @weight_softbodys.setter
     def weight_softbodys(self, values): # Arrayf of float
-        self._cache_weight_softbodys = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('weight_softbody', self._cache_weight_softbodys)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].bezier_points.foreach_set('weight_softbody', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def bpoints(self):
@@ -1176,109 +1073,113 @@ class WBezierSplinePoints(CollWrapper):
 class WSplinePoint(Wrapper):
 
     @property
+    def point(self): # The wrapped Blender point
+        return self.root_wrapper.top_obj.data.splines[self.wowner.windex].points[self.windex]
+
+    @property
+    def bstruct(self): # The wrapped Blender point
+        return self.root_wrapper.top_obj.data.splines[self.wowner.windex].points[self.windex]
+
+    @property
     def co(self): # V4
-        return self.obj.co
+        return self.point.co
 
     @property
     def x(self):
-        return self.obj.co[0]
+        return self.point.co[0]
 
     @property
     def y(self):
-        return self.obj.co[1]
+        return self.point.co[1]
 
     @property
     def z(self):
-        return self.obj.co[2]
+        return self.point.co[2]
 
     @property
     def w(self):
-        return self.obj.co[3]
+        return self.point.co[3]
 
     @co.setter
     def co(self, value): # V4
-        self.obj.co = to_array(value, (4,), "co")
+        self.point.co = to_array(value, (4,), "co")
 
     @x.setter
     def x(self, value):
-        self.obj.co[0] = value
+        self.point.co[0] = value
 
     @y.setter
     def y(self, value):
-        self.obj.co[1] = value
+        self.point.co[1] = value
 
     @z.setter
     def z(self, value):
-        self.obj.co[2] = value
+        self.point.co[2] = value
 
     @w.setter
     def w(self, value):
-        self.obj.co[3] = value
+        self.point.co[3] = value
 
     @property
     def radius(self): # float
-        return self.obj.radius
+        return self.point.radius
 
     @radius.setter
     def radius(self, value): # float
-        self.obj.radius = value
+        self.point.radius = value
 
     @property
     def tilt(self): # float
-        return self.obj.tilt
+        return self.point.tilt
 
     @tilt.setter
     def tilt(self, value): # float
-        self.obj.tilt = value
+        self.point.tilt = value
 
     @property
     def weight_softbody(self): # float
-        return self.obj.weight_softbody
+        return self.point.weight_softbody
 
     @weight_softbody.setter
     def weight_softbody(self, value): # float
-        self.obj.weight_softbody = value
+        self.point.weight_softbody = value
 
     @property
     def weight(self): # float
-        return self.obj.weight
+        return self.point.weight
 
     @weight.setter
     def weight(self, value): # float
-        self.obj.weight = value
+        self.point.weight = value
 
 #================================================================================
 # Array of WSplinePoints
 
-class WSplinePoints(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WSplinePoint)
-        self._cache_cos                     = None
-        self._cache_radius_s                = None
-        self._cache_tilts                   = None
-        self._cache_weight_softbodys        = None
-        self._cache_weights                 = None
+class WSplinePoints(Wrapper):
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_cos                     = None
-        self._cache_radius_s                = None
-        self._cache_tilts                   = None
-        self._cache_weight_softbodys        = None
-        self._cache_weights                 = None
+    @property
+    def points(self): # The wrapped Blender points
+        return self.root_wrapper.top_obj.data.splines[self.wowner.windex].points
+
+    def __len__(self):
+        return len(self.root_wrapper.top_obj.data.splines[self.wowner.windex].points)
+
+    def __getitem__(self, index):
+        return WSplinePoint(self.root_wrapper, wowner=self, index=index)
+
+    @property
+    def item_class(self):
+        return WSplinePoint
 
     @property
     def cos(self): # Array of V4
-        if self._cache_cos is None:
-            self._cache_cos = np.empty(len(self)*4, np.float)
-            self.coll.foreach_get('co', self._cache_cos)
-            self._cache_cos = self._cache_cos.reshape(len(self), 4)
-        return self._cache_cos
+        array = np.empty(len(self)*4, np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_get('co', array)
+        return array.reshape(len(self), 4)
 
     @cos.setter
     def cos(self, values): # Arrayf of V4
-        self._cache_cos = to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors')
-        self.coll.foreach_set('co', self._cache_cos.reshape(len(self) * 4))
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_set('co', to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors').reshape(len(self) * 4))
 
     # xyzw access to cos
 
@@ -1288,8 +1189,9 @@ class WSplinePoints(CollWrapper):
 
     @xs.setter
     def xs(self, values):
-        self.cos[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def ys(self): 
@@ -1297,8 +1199,9 @@ class WSplinePoints(CollWrapper):
 
     @ys.setter
     def ys(self, values):
-        self.cos[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def zs(self): 
@@ -1306,8 +1209,9 @@ class WSplinePoints(CollWrapper):
 
     @zs.setter
     def zs(self, values):
-        self.cos[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def ws(self): 
@@ -1315,1740 +1219,1268 @@ class WSplinePoints(CollWrapper):
 
     @ws.setter
     def ws(self, values):
-        self.cos[:, 3] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 3] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def radius_s(self): # Array of float
-        if self._cache_radius_s is None:
-            self._cache_radius_s = np.empty(len(self), np.float)
-            self.coll.foreach_get('radius', self._cache_radius_s)
-        return self._cache_radius_s
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_get('radius', array)
+        return array
 
     @radius_s.setter
     def radius_s(self, values): # Arrayf of float
-        self._cache_radius_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('radius', self._cache_radius_s)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_set('radius', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def tilts(self): # Array of float
-        if self._cache_tilts is None:
-            self._cache_tilts = np.empty(len(self), np.float)
-            self.coll.foreach_get('tilt', self._cache_tilts)
-        return self._cache_tilts
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_get('tilt', array)
+        return array
 
     @tilts.setter
     def tilts(self, values): # Arrayf of float
-        self._cache_tilts = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('tilt', self._cache_tilts)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_set('tilt', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def weight_softbodys(self): # Array of float
-        if self._cache_weight_softbodys is None:
-            self._cache_weight_softbodys = np.empty(len(self), np.float)
-            self.coll.foreach_get('weight_softbody', self._cache_weight_softbodys)
-        return self._cache_weight_softbodys
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_get('weight_softbody', array)
+        return array
 
     @weight_softbodys.setter
     def weight_softbodys(self, values): # Arrayf of float
-        self._cache_weight_softbodys = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('weight_softbody', self._cache_weight_softbodys)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_set('weight_softbody', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def weights(self): # Array of float
-        if self._cache_weights is None:
-            self._cache_weights = np.empty(len(self), np.float)
-            self.coll.foreach_get('weight', self._cache_weights)
-        return self._cache_weights
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_get('weight', array)
+        return array
 
     @weights.setter
     def weights(self, values): # Arrayf of float
-        self._cache_weights = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('weight', self._cache_weights)
+        self.root_wrapper.top_obj.data.splines[self.wowner.windex].points.foreach_set('weight', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
 #================================================================================
 # Spline class wrapper
 
 class WSpline(WSplineRoot):
 
-    def __init__(self, obj, wowner):
-        super().__init__(obj, wowner)
-        self.wbezier_points = WBezierSplinePoints(self.obj.bezier_points, self)
-        self.wpoints        = WSplinePoints(self.obj.points, self)
+    def __init__(self, root_wrapper, index):
+        super().__init__(root_wrapper, index=index)
+        self.wbezier_points = WBezierSplinePoints(self.root_wrapper, self, index)
+        self.wpoints        = WSplinePoints(self.root_wrapper, self, index)
+
+    @property
+    def spline(self): # The wrapped Blender spline
+        return self.root_wrapper.top_obj.data.splines[self.windex]
+
+    @property
+    def bstruct(self): # The wrapped Blender spline
+        return self.root_wrapper.top_obj.data.splines[self.windex]
 
     @property
     def character_index(self): # int
-        return self.obj.character_index
+        return self.spline.character_index
 
     @character_index.setter
     def character_index(self, value): # int
-        self.obj.character_index = value
+        self.spline.character_index = value
 
     @property
     def material_index(self): # int
-        return self.obj.material_index
+        return self.spline.material_index
 
     @material_index.setter
     def material_index(self, value): # int
-        self.obj.material_index = value
+        self.spline.material_index = value
 
     @property
     def order_u(self): # int
-        return self.obj.order_u
+        return self.spline.order_u
 
     @order_u.setter
     def order_u(self, value): # int
-        self.obj.order_u = value
+        self.spline.order_u = value
 
     @property
     def order_v(self): # int
-        return self.obj.order_v
+        return self.spline.order_v
 
     @order_v.setter
     def order_v(self, value): # int
-        self.obj.order_v = value
+        self.spline.order_v = value
 
     @property
     def point_count_u(self): # int
-        return self.obj.point_count_u
+        return self.spline.point_count_u
 
     @point_count_u.setter
     def point_count_u(self, value): # int
-        self.obj.point_count_u = value
+        self.spline.point_count_u = value
 
     @property
     def point_count_v(self): # int
-        return self.obj.point_count_v
+        return self.spline.point_count_v
 
     @point_count_v.setter
     def point_count_v(self, value): # int
-        self.obj.point_count_v = value
+        self.spline.point_count_v = value
 
     @property
     def radius_interpolation(self): # str
-        return self.obj.radius_interpolation
+        return self.spline.radius_interpolation
 
     @radius_interpolation.setter
     def radius_interpolation(self, value): # str
-        self.obj.radius_interpolation = value
+        self.spline.radius_interpolation = value
 
     @property
     def resolution_u(self): # int
-        return self.obj.resolution_u
+        return self.spline.resolution_u
 
     @resolution_u.setter
     def resolution_u(self, value): # int
-        self.obj.resolution_u = value
+        self.spline.resolution_u = value
 
     @property
     def resolution_v(self): # int
-        return self.obj.resolution_v
+        return self.spline.resolution_v
 
     @resolution_v.setter
     def resolution_v(self, value): # int
-        self.obj.resolution_v = value
+        self.spline.resolution_v = value
 
     @property
     def type(self): # str
-        return self.obj.type
+        return self.spline.type
 
     @type.setter
     def type(self, value): # str
-        self.obj.type = value
+        self.spline.type = value
 
     @property
     def use_bezier_u(self): # bool
-        return self.obj.use_bezier_u
+        return self.spline.use_bezier_u
 
     @use_bezier_u.setter
     def use_bezier_u(self, value): # bool
-        self.obj.use_bezier_u = value
+        self.spline.use_bezier_u = value
 
     @property
     def use_bezier_v(self): # bool
-        return self.obj.use_bezier_v
+        return self.spline.use_bezier_v
 
     @use_bezier_v.setter
     def use_bezier_v(self, value): # bool
-        self.obj.use_bezier_v = value
+        self.spline.use_bezier_v = value
 
     @property
     def use_cyclic_u(self): # bool
-        return self.obj.use_cyclic_u
+        return self.spline.use_cyclic_u
 
     @use_cyclic_u.setter
     def use_cyclic_u(self, value): # bool
-        self.obj.use_cyclic_u = value
+        self.spline.use_cyclic_u = value
 
     @property
     def use_cyclic_v(self): # bool
-        return self.obj.use_cyclic_v
+        return self.spline.use_cyclic_v
 
     @use_cyclic_v.setter
     def use_cyclic_v(self, value): # bool
-        self.obj.use_cyclic_v = value
+        self.spline.use_cyclic_v = value
 
     @property
     def use_endpoint_u(self): # bool
-        return self.obj.use_endpoint_u
+        return self.spline.use_endpoint_u
 
     @use_endpoint_u.setter
     def use_endpoint_u(self, value): # bool
-        self.obj.use_endpoint_u = value
+        self.spline.use_endpoint_u = value
 
     @property
     def use_endpoint_v(self): # bool
-        return self.obj.use_endpoint_v
+        return self.spline.use_endpoint_v
 
     @use_endpoint_v.setter
     def use_endpoint_v(self, value): # bool
-        self.obj.use_endpoint_v = value
+        self.spline.use_endpoint_v = value
 
     @property
     def use_smooth(self): # bool
-        return self.obj.use_smooth
+        return self.spline.use_smooth
 
     @use_smooth.setter
     def use_smooth(self, value): # bool
-        self.obj.use_smooth = value
+        self.spline.use_smooth = value
 
 #================================================================================
 # Array of WSplines
 
 class WSplines(WSplinesRoot):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WSpline)
-        self._cache_character_indices       = None
-        self._cache_material_indices        = None
-        self._cache_order_us                = None
-        self._cache_order_vs                = None
-        self._cache_point_count_us          = None
-        self._cache_point_count_vs          = None
-        self._cache_radius_interpolations   = None
-        self._cache_resolution_us           = None
-        self._cache_resolution_vs           = None
-        self._cache_types                   = None
-        self._cache_use_bezier_us           = None
-        self._cache_use_bezier_vs           = None
-        self._cache_use_cyclic_us           = None
-        self._cache_use_cyclic_vs           = None
-        self._cache_use_endpoint_us         = None
-        self._cache_use_endpoint_vs         = None
-        self._cache_use_smooths             = None
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_character_indices       = None
-        self._cache_material_indices        = None
-        self._cache_order_us                = None
-        self._cache_order_vs                = None
-        self._cache_point_count_us          = None
-        self._cache_point_count_vs          = None
-        self._cache_radius_interpolations   = None
-        self._cache_resolution_us           = None
-        self._cache_resolution_vs           = None
-        self._cache_types                   = None
-        self._cache_use_bezier_us           = None
-        self._cache_use_bezier_vs           = None
-        self._cache_use_cyclic_us           = None
-        self._cache_use_cyclic_vs           = None
-        self._cache_use_endpoint_us         = None
-        self._cache_use_endpoint_vs         = None
-        self._cache_use_smooths             = None
+    @property
+    def splines(self): # The wrapped Blender splines
+        return self.root_wrapper.top_obj.data.splines
+
+    def __len__(self):
+        return len(self.root_wrapper.top_obj.data.splines)
+
+    def __getitem__(self, index):
+        return WSpline(self.root_wrapper, index=index)
+
+    @property
+    def item_class(self):
+        return WSpline
 
     @property
     def character_indices(self): # Array of int
-        if self._cache_character_indices is None:
-            self._cache_character_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('character_index', self._cache_character_indices)
-        return self._cache_character_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines.foreach_get('character_index', array)
+        return array
 
     @character_indices.setter
     def character_indices(self, values): # Arrayf of int
-        self._cache_character_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('character_index', self._cache_character_indices)
+        self.root_wrapper.top_obj.data.splines.foreach_set('character_index', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def material_indices(self): # Array of int
-        if self._cache_material_indices is None:
-            self._cache_material_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('material_index', self._cache_material_indices)
-        return self._cache_material_indices
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines.foreach_get('material_index', array)
+        return array
 
     @material_indices.setter
     def material_indices(self, values): # Arrayf of int
-        self._cache_material_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('material_index', self._cache_material_indices)
+        self.root_wrapper.top_obj.data.splines.foreach_set('material_index', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def order_us(self): # Array of int
-        if self._cache_order_us is None:
-            self._cache_order_us = np.empty(len(self), np.int)
-            self.coll.foreach_get('order_u', self._cache_order_us)
-        return self._cache_order_us
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines.foreach_get('order_u', array)
+        return array
 
     @order_us.setter
     def order_us(self, values): # Arrayf of int
-        self._cache_order_us = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('order_u', self._cache_order_us)
+        self.root_wrapper.top_obj.data.splines.foreach_set('order_u', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def order_vs(self): # Array of int
-        if self._cache_order_vs is None:
-            self._cache_order_vs = np.empty(len(self), np.int)
-            self.coll.foreach_get('order_v', self._cache_order_vs)
-        return self._cache_order_vs
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines.foreach_get('order_v', array)
+        return array
 
     @order_vs.setter
     def order_vs(self, values): # Arrayf of int
-        self._cache_order_vs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('order_v', self._cache_order_vs)
+        self.root_wrapper.top_obj.data.splines.foreach_set('order_v', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def point_count_us(self): # Array of int
-        if self._cache_point_count_us is None:
-            self._cache_point_count_us = np.empty(len(self), np.int)
-            self.coll.foreach_get('point_count_u', self._cache_point_count_us)
-        return self._cache_point_count_us
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines.foreach_get('point_count_u', array)
+        return array
 
     @point_count_us.setter
     def point_count_us(self, values): # Arrayf of int
-        self._cache_point_count_us = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('point_count_u', self._cache_point_count_us)
+        self.root_wrapper.top_obj.data.splines.foreach_set('point_count_u', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def point_count_vs(self): # Array of int
-        if self._cache_point_count_vs is None:
-            self._cache_point_count_vs = np.empty(len(self), np.int)
-            self.coll.foreach_get('point_count_v', self._cache_point_count_vs)
-        return self._cache_point_count_vs
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines.foreach_get('point_count_v', array)
+        return array
 
     @point_count_vs.setter
     def point_count_vs(self, values): # Arrayf of int
-        self._cache_point_count_vs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('point_count_v', self._cache_point_count_vs)
+        self.root_wrapper.top_obj.data.splines.foreach_set('point_count_v', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def radius_interpolations(self): # Array of str
-        if self._cache_radius_interpolations is None:
-            self._cache_radius_interpolations = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_radius_interpolations[i] = self[i].radius_interpolation
-        return self._cache_radius_interpolations
+        array = np.empty(len(self), np.object)
+        coll = self.root_wrapper.top_obj.data.splines
+        for i in range(len(self)):
+            array[i] = coll[i].radius_interpolation
+        return array
 
     @radius_interpolations.setter
     def radius_interpolations(self, values): # Arrayf of str
-        self._cache_radius_interpolations = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = self.root_wrapper.top_obj.data.splines
         for i in range(len(self)):
-            self[i].radius_interpolation = self._cache_radius_interpolations[i]
+            coll[i].radius_interpolation = array[i]
 
     @property
     def resolution_us(self): # Array of int
-        if self._cache_resolution_us is None:
-            self._cache_resolution_us = np.empty(len(self), np.int)
-            self.coll.foreach_get('resolution_u', self._cache_resolution_us)
-        return self._cache_resolution_us
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines.foreach_get('resolution_u', array)
+        return array
 
     @resolution_us.setter
     def resolution_us(self, values): # Arrayf of int
-        self._cache_resolution_us = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('resolution_u', self._cache_resolution_us)
+        self.root_wrapper.top_obj.data.splines.foreach_set('resolution_u', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def resolution_vs(self): # Array of int
-        if self._cache_resolution_vs is None:
-            self._cache_resolution_vs = np.empty(len(self), np.int)
-            self.coll.foreach_get('resolution_v', self._cache_resolution_vs)
-        return self._cache_resolution_vs
+        array = np.empty(len(self), np.int)
+        self.root_wrapper.top_obj.data.splines.foreach_get('resolution_v', array)
+        return array
 
     @resolution_vs.setter
     def resolution_vs(self, values): # Arrayf of int
-        self._cache_resolution_vs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('resolution_v', self._cache_resolution_vs)
+        self.root_wrapper.top_obj.data.splines.foreach_set('resolution_v', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def types(self): # Array of str
-        if self._cache_types is None:
-            self._cache_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_types[i] = self[i].type
-        return self._cache_types
+        array = np.empty(len(self), np.object)
+        coll = self.root_wrapper.top_obj.data.splines
+        for i in range(len(self)):
+            array[i] = coll[i].type
+        return array
 
     @types.setter
     def types(self, values): # Arrayf of str
-        self._cache_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = self.root_wrapper.top_obj.data.splines
         for i in range(len(self)):
-            self[i].type = self._cache_types[i]
+            coll[i].type = array[i]
 
     @property
     def use_bezier_us(self): # Array of bool
-        if self._cache_use_bezier_us is None:
-            self._cache_use_bezier_us = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_bezier_u', self._cache_use_bezier_us)
-        return self._cache_use_bezier_us
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.splines.foreach_get('use_bezier_u', array)
+        return array
 
     @use_bezier_us.setter
     def use_bezier_us(self, values): # Arrayf of bool
-        self._cache_use_bezier_us = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_bezier_u', self._cache_use_bezier_us)
+        self.root_wrapper.top_obj.data.splines.foreach_set('use_bezier_u', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_bezier_vs(self): # Array of bool
-        if self._cache_use_bezier_vs is None:
-            self._cache_use_bezier_vs = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_bezier_v', self._cache_use_bezier_vs)
-        return self._cache_use_bezier_vs
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.splines.foreach_get('use_bezier_v', array)
+        return array
 
     @use_bezier_vs.setter
     def use_bezier_vs(self, values): # Arrayf of bool
-        self._cache_use_bezier_vs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_bezier_v', self._cache_use_bezier_vs)
+        self.root_wrapper.top_obj.data.splines.foreach_set('use_bezier_v', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_cyclic_us(self): # Array of bool
-        if self._cache_use_cyclic_us is None:
-            self._cache_use_cyclic_us = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_cyclic_u', self._cache_use_cyclic_us)
-        return self._cache_use_cyclic_us
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.splines.foreach_get('use_cyclic_u', array)
+        return array
 
     @use_cyclic_us.setter
     def use_cyclic_us(self, values): # Arrayf of bool
-        self._cache_use_cyclic_us = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_cyclic_u', self._cache_use_cyclic_us)
+        self.root_wrapper.top_obj.data.splines.foreach_set('use_cyclic_u', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_cyclic_vs(self): # Array of bool
-        if self._cache_use_cyclic_vs is None:
-            self._cache_use_cyclic_vs = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_cyclic_v', self._cache_use_cyclic_vs)
-        return self._cache_use_cyclic_vs
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.splines.foreach_get('use_cyclic_v', array)
+        return array
 
     @use_cyclic_vs.setter
     def use_cyclic_vs(self, values): # Arrayf of bool
-        self._cache_use_cyclic_vs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_cyclic_v', self._cache_use_cyclic_vs)
+        self.root_wrapper.top_obj.data.splines.foreach_set('use_cyclic_v', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_endpoint_us(self): # Array of bool
-        if self._cache_use_endpoint_us is None:
-            self._cache_use_endpoint_us = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_endpoint_u', self._cache_use_endpoint_us)
-        return self._cache_use_endpoint_us
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.splines.foreach_get('use_endpoint_u', array)
+        return array
 
     @use_endpoint_us.setter
     def use_endpoint_us(self, values): # Arrayf of bool
-        self._cache_use_endpoint_us = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_endpoint_u', self._cache_use_endpoint_us)
+        self.root_wrapper.top_obj.data.splines.foreach_set('use_endpoint_u', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_endpoint_vs(self): # Array of bool
-        if self._cache_use_endpoint_vs is None:
-            self._cache_use_endpoint_vs = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_endpoint_v', self._cache_use_endpoint_vs)
-        return self._cache_use_endpoint_vs
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.splines.foreach_get('use_endpoint_v', array)
+        return array
 
     @use_endpoint_vs.setter
     def use_endpoint_vs(self, values): # Arrayf of bool
-        self._cache_use_endpoint_vs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_endpoint_v', self._cache_use_endpoint_vs)
+        self.root_wrapper.top_obj.data.splines.foreach_set('use_endpoint_v', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_smooths(self): # Array of bool
-        if self._cache_use_smooths is None:
-            self._cache_use_smooths = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_smooth', self._cache_use_smooths)
-        return self._cache_use_smooths
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_obj.data.splines.foreach_get('use_smooth', array)
+        return array
 
     @use_smooths.setter
     def use_smooths(self, values): # Arrayf of bool
-        self._cache_use_smooths = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_smooth', self._cache_use_smooths)
+        self.root_wrapper.top_obj.data.splines.foreach_set('use_smooth', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
 #================================================================================
 # Curve class wrapper
 
 class WCurve(Wrapper):
 
-    def __init__(self, obj, wowner):
-        super().__init__(obj, wowner)
-        self.wsplines = WSplines(self.obj.splines, self)
+    def __init__(self, root_wrapper):
+        super().__init__(root_wrapper)
+        self.wsplines = WSplines(self.root_wrapper)
+
+    @property
+    def curve(self): # The wrapped Blender curve
+        return self.root_wrapper.top_obj.data
+
+    @property
+    def bstruct(self): # The wrapped Blender curve
+        return self.root_wrapper.top_obj.data
 
     @property
     def bevel_depth(self): # float
-        return self.obj.bevel_depth
+        return self.curve.bevel_depth
 
     @bevel_depth.setter
     def bevel_depth(self, value): # float
-        self.obj.bevel_depth = value
+        self.curve.bevel_depth = value
 
     @property
     def bevel_factor_end(self): # float
-        return self.obj.bevel_factor_end
+        return self.curve.bevel_factor_end
 
     @bevel_factor_end.setter
     def bevel_factor_end(self, value): # float
-        self.obj.bevel_factor_end = value
+        self.curve.bevel_factor_end = value
 
     @property
     def bevel_factor_start(self): # float
-        return self.obj.bevel_factor_start
+        return self.curve.bevel_factor_start
 
     @bevel_factor_start.setter
     def bevel_factor_start(self, value): # float
-        self.obj.bevel_factor_start = value
+        self.curve.bevel_factor_start = value
 
     @property
     def bevel_object(self): # object
-        return self.obj.bevel_object
+        return self.curve.bevel_object
 
     @bevel_object.setter
     def bevel_object(self, value): # object
-        self.obj.bevel_object = value
+        self.curve.bevel_object = value
 
     @property
     def bevel_resolution(self): # int
-        return self.obj.bevel_resolution
+        return self.curve.bevel_resolution
 
     @bevel_resolution.setter
     def bevel_resolution(self, value): # int
-        self.obj.bevel_resolution = value
+        self.curve.bevel_resolution = value
 
     @property
     def dimensions(self): # str
-        return self.obj.dimensions
+        return self.curve.dimensions
 
     @dimensions.setter
     def dimensions(self, value): # str
-        self.obj.dimensions = value
+        self.curve.dimensions = value
 
     @property
     def eval_time(self): # float
-        return self.obj.eval_time
+        return self.curve.eval_time
 
     @eval_time.setter
     def eval_time(self, value): # float
-        self.obj.eval_time = value
+        self.curve.eval_time = value
 
     @property
     def extrude(self): # float
-        return self.obj.extrude
+        return self.curve.extrude
 
     @extrude.setter
     def extrude(self, value): # float
-        self.obj.extrude = value
+        self.curve.extrude = value
 
     @property
     def fill_mode(self): # str
-        return self.obj.fill_mode
+        return self.curve.fill_mode
 
     @fill_mode.setter
     def fill_mode(self, value): # str
-        self.obj.fill_mode = value
+        self.curve.fill_mode = value
 
     @property
     def offset(self): # float
-        return self.obj.offset
+        return self.curve.offset
 
     @offset.setter
     def offset(self, value): # float
-        self.obj.offset = value
+        self.curve.offset = value
 
     @property
     def path_duration(self): # int
-        return self.obj.path_duration
+        return self.curve.path_duration
 
     @path_duration.setter
     def path_duration(self, value): # int
-        self.obj.path_duration = value
+        self.curve.path_duration = value
 
     @property
     def render_resolution_u(self): # int
-        return self.obj.render_resolution_u
+        return self.curve.render_resolution_u
 
     @render_resolution_u.setter
     def render_resolution_u(self, value): # int
-        self.obj.render_resolution_u = value
+        self.curve.render_resolution_u = value
 
     @property
     def render_resolution_v(self): # int
-        return self.obj.render_resolution_v
+        return self.curve.render_resolution_v
 
     @render_resolution_v.setter
     def render_resolution_v(self, value): # int
-        self.obj.render_resolution_v = value
+        self.curve.render_resolution_v = value
 
     @property
     def resolution_u(self): # int
-        return self.obj.resolution_u
+        return self.curve.resolution_u
 
     @resolution_u.setter
     def resolution_u(self, value): # int
-        self.obj.resolution_u = value
+        self.curve.resolution_u = value
 
     @property
     def resolution_v(self): # int
-        return self.obj.resolution_v
+        return self.curve.resolution_v
 
     @resolution_v.setter
     def resolution_v(self, value): # int
-        self.obj.resolution_v = value
+        self.curve.resolution_v = value
 
     @property
     def taper_object(self): # object
-        return self.obj.taper_object
+        return self.curve.taper_object
 
     @taper_object.setter
     def taper_object(self, value): # object
-        self.obj.taper_object = value
+        self.curve.taper_object = value
 
     @property
     def twist_smooth(self): # float
-        return self.obj.twist_smooth
+        return self.curve.twist_smooth
 
     @twist_smooth.setter
     def twist_smooth(self, value): # float
-        self.obj.twist_smooth = value
+        self.curve.twist_smooth = value
 
     @property
     def use_auto_texspace(self): # bool
-        return self.obj.use_auto_texspace
+        return self.curve.use_auto_texspace
 
     @use_auto_texspace.setter
     def use_auto_texspace(self, value): # bool
-        self.obj.use_auto_texspace = value
+        self.curve.use_auto_texspace = value
 
     @property
     def use_deform_bounds(self): # bool
-        return self.obj.use_deform_bounds
+        return self.curve.use_deform_bounds
 
     @use_deform_bounds.setter
     def use_deform_bounds(self, value): # bool
-        self.obj.use_deform_bounds = value
+        self.curve.use_deform_bounds = value
 
     @property
     def use_fill_caps(self): # bool
-        return self.obj.use_fill_caps
+        return self.curve.use_fill_caps
 
     @use_fill_caps.setter
     def use_fill_caps(self, value): # bool
-        self.obj.use_fill_caps = value
+        self.curve.use_fill_caps = value
 
     @property
     def use_fill_deform(self): # bool
-        return self.obj.use_fill_deform
+        return self.curve.use_fill_deform
 
     @use_fill_deform.setter
     def use_fill_deform(self, value): # bool
-        self.obj.use_fill_deform = value
+        self.curve.use_fill_deform = value
 
     @property
     def use_map_taper(self): # bool
-        return self.obj.use_map_taper
+        return self.curve.use_map_taper
 
     @use_map_taper.setter
     def use_map_taper(self, value): # bool
-        self.obj.use_map_taper = value
+        self.curve.use_map_taper = value
 
     @property
     def use_path_follow(self): # bool
-        return self.obj.use_path_follow
+        return self.curve.use_path_follow
 
     @use_path_follow.setter
     def use_path_follow(self, value): # bool
-        self.obj.use_path_follow = value
+        self.curve.use_path_follow = value
 
     @property
     def use_path(self): # bool
-        return self.obj.use_path
+        return self.curve.use_path
 
     @use_path.setter
     def use_path(self, value): # bool
-        self.obj.use_path = value
+        self.curve.use_path = value
 
     @property
     def use_radius(self): # bool
-        return self.obj.use_radius
+        return self.curve.use_radius
 
     @use_radius.setter
     def use_radius(self, value): # bool
-        self.obj.use_radius = value
+        self.curve.use_radius = value
 
     @property
     def use_stretch(self): # bool
-        return self.obj.use_stretch
+        return self.curve.use_stretch
 
     @use_stretch.setter
     def use_stretch(self, value): # bool
-        self.obj.use_stretch = value
-
-#================================================================================
-# Array of WCurves
-
-class WCurves(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WCurve)
-        self._cache_bevel_depths            = None
-        self._cache_bevel_factor_ends       = None
-        self._cache_bevel_factor_starts     = None
-        self._cache_bevel_resolutions       = None
-        self._cache_dimensions_s            = None
-        self._cache_eval_times              = None
-        self._cache_extrudes                = None
-        self._cache_fill_modes              = None
-        self._cache_offsets                 = None
-        self._cache_path_durations          = None
-        self._cache_render_resolution_us    = None
-        self._cache_render_resolution_vs    = None
-        self._cache_resolution_us           = None
-        self._cache_resolution_vs           = None
-        self._cache_twist_smooths           = None
-        self._cache_use_auto_texspaces      = None
-        self._cache_use_deform_bounds_s     = None
-        self._cache_use_fill_caps_s         = None
-        self._cache_use_fill_deforms        = None
-        self._cache_use_map_tapers          = None
-        self._cache_use_path_follows        = None
-        self._cache_use_paths               = None
-        self._cache_use_radius_s            = None
-        self._cache_use_stretchs            = None
-
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_bevel_depths            = None
-        self._cache_bevel_factor_ends       = None
-        self._cache_bevel_factor_starts     = None
-        self._cache_bevel_resolutions       = None
-        self._cache_dimensions_s            = None
-        self._cache_eval_times              = None
-        self._cache_extrudes                = None
-        self._cache_fill_modes              = None
-        self._cache_offsets                 = None
-        self._cache_path_durations          = None
-        self._cache_render_resolution_us    = None
-        self._cache_render_resolution_vs    = None
-        self._cache_resolution_us           = None
-        self._cache_resolution_vs           = None
-        self._cache_twist_smooths           = None
-        self._cache_use_auto_texspaces      = None
-        self._cache_use_deform_bounds_s     = None
-        self._cache_use_fill_caps_s         = None
-        self._cache_use_fill_deforms        = None
-        self._cache_use_map_tapers          = None
-        self._cache_use_path_follows        = None
-        self._cache_use_paths               = None
-        self._cache_use_radius_s            = None
-        self._cache_use_stretchs            = None
+        self.curve.use_stretch = value
 
     @property
-    def bevel_depths(self): # Array of float
-        if self._cache_bevel_depths is None:
-            self._cache_bevel_depths = np.empty(len(self), np.float)
-            self.coll.foreach_get('bevel_depth', self._cache_bevel_depths)
-        return self._cache_bevel_depths
+    def t0(self): # float
+        return self.curve.bevel_factor_end
 
-    @bevel_depths.setter
-    def bevel_depths(self, values): # Arrayf of float
-        self._cache_bevel_depths = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('bevel_depth', self._cache_bevel_depths)
+    @t0.setter
+    def t0(self, value): # float
+        self.curve.bevel_factor_end = value
 
     @property
-    def bevel_factor_ends(self): # Array of float
-        if self._cache_bevel_factor_ends is None:
-            self._cache_bevel_factor_ends = np.empty(len(self), np.float)
-            self.coll.foreach_get('bevel_factor_end', self._cache_bevel_factor_ends)
-        return self._cache_bevel_factor_ends
+    def t1(self): # float
+        return self.curve.bevel_factor_start
 
-    @bevel_factor_ends.setter
-    def bevel_factor_ends(self, values): # Arrayf of float
-        self._cache_bevel_factor_ends = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('bevel_factor_end', self._cache_bevel_factor_ends)
-
-    @property
-    def bevel_factor_starts(self): # Array of float
-        if self._cache_bevel_factor_starts is None:
-            self._cache_bevel_factor_starts = np.empty(len(self), np.float)
-            self.coll.foreach_get('bevel_factor_start', self._cache_bevel_factor_starts)
-        return self._cache_bevel_factor_starts
-
-    @bevel_factor_starts.setter
-    def bevel_factor_starts(self, values): # Arrayf of float
-        self._cache_bevel_factor_starts = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('bevel_factor_start', self._cache_bevel_factor_starts)
-
-    @property
-    def bevel_resolutions(self): # Array of int
-        if self._cache_bevel_resolutions is None:
-            self._cache_bevel_resolutions = np.empty(len(self), np.int)
-            self.coll.foreach_get('bevel_resolution', self._cache_bevel_resolutions)
-        return self._cache_bevel_resolutions
-
-    @bevel_resolutions.setter
-    def bevel_resolutions(self, values): # Arrayf of int
-        self._cache_bevel_resolutions = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('bevel_resolution', self._cache_bevel_resolutions)
-
-    @property
-    def dimensions_s(self): # Array of str
-        if self._cache_dimensions_s is None:
-            self._cache_dimensions_s = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_dimensions_s[i] = self[i].dimensions
-        return self._cache_dimensions_s
-
-    @dimensions_s.setter
-    def dimensions_s(self, values): # Arrayf of str
-        self._cache_dimensions_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].dimensions = self._cache_dimensions_s[i]
-
-    @property
-    def eval_times(self): # Array of float
-        if self._cache_eval_times is None:
-            self._cache_eval_times = np.empty(len(self), np.float)
-            self.coll.foreach_get('eval_time', self._cache_eval_times)
-        return self._cache_eval_times
-
-    @eval_times.setter
-    def eval_times(self, values): # Arrayf of float
-        self._cache_eval_times = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('eval_time', self._cache_eval_times)
-
-    @property
-    def extrudes(self): # Array of float
-        if self._cache_extrudes is None:
-            self._cache_extrudes = np.empty(len(self), np.float)
-            self.coll.foreach_get('extrude', self._cache_extrudes)
-        return self._cache_extrudes
-
-    @extrudes.setter
-    def extrudes(self, values): # Arrayf of float
-        self._cache_extrudes = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('extrude', self._cache_extrudes)
-
-    @property
-    def fill_modes(self): # Array of str
-        if self._cache_fill_modes is None:
-            self._cache_fill_modes = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_fill_modes[i] = self[i].fill_mode
-        return self._cache_fill_modes
-
-    @fill_modes.setter
-    def fill_modes(self, values): # Arrayf of str
-        self._cache_fill_modes = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].fill_mode = self._cache_fill_modes[i]
-
-    @property
-    def offsets(self): # Array of float
-        if self._cache_offsets is None:
-            self._cache_offsets = np.empty(len(self), np.float)
-            self.coll.foreach_get('offset', self._cache_offsets)
-        return self._cache_offsets
-
-    @offsets.setter
-    def offsets(self, values): # Arrayf of float
-        self._cache_offsets = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('offset', self._cache_offsets)
-
-    @property
-    def path_durations(self): # Array of int
-        if self._cache_path_durations is None:
-            self._cache_path_durations = np.empty(len(self), np.int)
-            self.coll.foreach_get('path_duration', self._cache_path_durations)
-        return self._cache_path_durations
-
-    @path_durations.setter
-    def path_durations(self, values): # Arrayf of int
-        self._cache_path_durations = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('path_duration', self._cache_path_durations)
-
-    @property
-    def render_resolution_us(self): # Array of int
-        if self._cache_render_resolution_us is None:
-            self._cache_render_resolution_us = np.empty(len(self), np.int)
-            self.coll.foreach_get('render_resolution_u', self._cache_render_resolution_us)
-        return self._cache_render_resolution_us
-
-    @render_resolution_us.setter
-    def render_resolution_us(self, values): # Arrayf of int
-        self._cache_render_resolution_us = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('render_resolution_u', self._cache_render_resolution_us)
-
-    @property
-    def render_resolution_vs(self): # Array of int
-        if self._cache_render_resolution_vs is None:
-            self._cache_render_resolution_vs = np.empty(len(self), np.int)
-            self.coll.foreach_get('render_resolution_v', self._cache_render_resolution_vs)
-        return self._cache_render_resolution_vs
-
-    @render_resolution_vs.setter
-    def render_resolution_vs(self, values): # Arrayf of int
-        self._cache_render_resolution_vs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('render_resolution_v', self._cache_render_resolution_vs)
-
-    @property
-    def resolution_us(self): # Array of int
-        if self._cache_resolution_us is None:
-            self._cache_resolution_us = np.empty(len(self), np.int)
-            self.coll.foreach_get('resolution_u', self._cache_resolution_us)
-        return self._cache_resolution_us
-
-    @resolution_us.setter
-    def resolution_us(self, values): # Arrayf of int
-        self._cache_resolution_us = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('resolution_u', self._cache_resolution_us)
-
-    @property
-    def resolution_vs(self): # Array of int
-        if self._cache_resolution_vs is None:
-            self._cache_resolution_vs = np.empty(len(self), np.int)
-            self.coll.foreach_get('resolution_v', self._cache_resolution_vs)
-        return self._cache_resolution_vs
-
-    @resolution_vs.setter
-    def resolution_vs(self, values): # Arrayf of int
-        self._cache_resolution_vs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('resolution_v', self._cache_resolution_vs)
-
-    @property
-    def twist_smooths(self): # Array of float
-        if self._cache_twist_smooths is None:
-            self._cache_twist_smooths = np.empty(len(self), np.float)
-            self.coll.foreach_get('twist_smooth', self._cache_twist_smooths)
-        return self._cache_twist_smooths
-
-    @twist_smooths.setter
-    def twist_smooths(self, values): # Arrayf of float
-        self._cache_twist_smooths = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('twist_smooth', self._cache_twist_smooths)
-
-    @property
-    def use_auto_texspaces(self): # Array of bool
-        if self._cache_use_auto_texspaces is None:
-            self._cache_use_auto_texspaces = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_auto_texspace', self._cache_use_auto_texspaces)
-        return self._cache_use_auto_texspaces
-
-    @use_auto_texspaces.setter
-    def use_auto_texspaces(self, values): # Arrayf of bool
-        self._cache_use_auto_texspaces = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_auto_texspace', self._cache_use_auto_texspaces)
-
-    @property
-    def use_deform_bounds_s(self): # Array of bool
-        if self._cache_use_deform_bounds_s is None:
-            self._cache_use_deform_bounds_s = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_deform_bounds', self._cache_use_deform_bounds_s)
-        return self._cache_use_deform_bounds_s
-
-    @use_deform_bounds_s.setter
-    def use_deform_bounds_s(self, values): # Arrayf of bool
-        self._cache_use_deform_bounds_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_deform_bounds', self._cache_use_deform_bounds_s)
-
-    @property
-    def use_fill_caps_s(self): # Array of bool
-        if self._cache_use_fill_caps_s is None:
-            self._cache_use_fill_caps_s = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_fill_caps', self._cache_use_fill_caps_s)
-        return self._cache_use_fill_caps_s
-
-    @use_fill_caps_s.setter
-    def use_fill_caps_s(self, values): # Arrayf of bool
-        self._cache_use_fill_caps_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_fill_caps', self._cache_use_fill_caps_s)
-
-    @property
-    def use_fill_deforms(self): # Array of bool
-        if self._cache_use_fill_deforms is None:
-            self._cache_use_fill_deforms = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_fill_deform', self._cache_use_fill_deforms)
-        return self._cache_use_fill_deforms
-
-    @use_fill_deforms.setter
-    def use_fill_deforms(self, values): # Arrayf of bool
-        self._cache_use_fill_deforms = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_fill_deform', self._cache_use_fill_deforms)
-
-    @property
-    def use_map_tapers(self): # Array of bool
-        if self._cache_use_map_tapers is None:
-            self._cache_use_map_tapers = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_map_taper', self._cache_use_map_tapers)
-        return self._cache_use_map_tapers
-
-    @use_map_tapers.setter
-    def use_map_tapers(self, values): # Arrayf of bool
-        self._cache_use_map_tapers = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_map_taper', self._cache_use_map_tapers)
-
-    @property
-    def use_path_follows(self): # Array of bool
-        if self._cache_use_path_follows is None:
-            self._cache_use_path_follows = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_path_follow', self._cache_use_path_follows)
-        return self._cache_use_path_follows
-
-    @use_path_follows.setter
-    def use_path_follows(self, values): # Arrayf of bool
-        self._cache_use_path_follows = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_path_follow', self._cache_use_path_follows)
-
-    @property
-    def use_paths(self): # Array of bool
-        if self._cache_use_paths is None:
-            self._cache_use_paths = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_path', self._cache_use_paths)
-        return self._cache_use_paths
-
-    @use_paths.setter
-    def use_paths(self, values): # Arrayf of bool
-        self._cache_use_paths = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_path', self._cache_use_paths)
-
-    @property
-    def use_radius_s(self): # Array of bool
-        if self._cache_use_radius_s is None:
-            self._cache_use_radius_s = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_radius', self._cache_use_radius_s)
-        return self._cache_use_radius_s
-
-    @use_radius_s.setter
-    def use_radius_s(self, values): # Arrayf of bool
-        self._cache_use_radius_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_radius', self._cache_use_radius_s)
-
-    @property
-    def use_stretchs(self): # Array of bool
-        if self._cache_use_stretchs is None:
-            self._cache_use_stretchs = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_stretch', self._cache_use_stretchs)
-        return self._cache_use_stretchs
-
-    @use_stretchs.setter
-    def use_stretchs(self, values): # Arrayf of bool
-        self._cache_use_stretchs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_stretch', self._cache_use_stretchs)
+    @t1.setter
+    def t1(self, value): # float
+        self.curve.bevel_factor_start = value
 
 #================================================================================
 # Object class wrapper
 
 class WObject(WObjectRoot):
 
+    def __init__(self, name):
+        super().__init__(self)
+        self.name = name
+
+    @property
+    def top_obj(self):
+        return bpy.data.objects[self.name]
+
+    @property
+    def object(self): # The wrapped Blender object
+        return bpy.data.objects[self.name]
+
+    @property
+    def bstruct(self): # The wrapped Blender object
+        return bpy.data.objects[self.name]
+
     @property
     def active_material_index(self): # int
-        return self.obj.active_material_index
+        return self.object.active_material_index
 
     @active_material_index.setter
     def active_material_index(self, value): # int
-        self.obj.active_material_index = value
+        self.object.active_material_index = value
 
     @property
     def active_shape_key_index(self): # int
-        return self.obj.active_shape_key_index
+        return self.object.active_shape_key_index
 
     @active_shape_key_index.setter
     def active_shape_key_index(self, value): # int
-        self.obj.active_shape_key_index = value
+        self.object.active_shape_key_index = value
 
     @property
     def bound_box(self): # bbox
-        return self.obj.bound_box
+        return self.object.bound_box
 
     @bound_box.setter
     def bound_box(self, value): # bbox
-        self.obj.bound_box = value
+        self.object.bound_box = value
 
     @property
     def color(self): # V4
-        return self.obj.color
+        return self.object.color
 
     @color.setter
     def color(self, value): # V4
-        self.obj.color = to_array(value, (4,), "color")
+        self.object.color = to_array(value, (4,), "color")
 
     @property
     def delta_location(self): # V3
-        return self.obj.delta_location
+        return self.object.delta_location
 
     @delta_location.setter
     def delta_location(self, value): # V3
-        self.obj.delta_location = to_array(value, (3,), "delta_location")
+        self.object.delta_location = to_array(value, (3,), "delta_location")
 
     @property
     def delta_rotation_euler(self): # V3
-        return self.obj.delta_rotation_euler
+        return self.object.delta_rotation_euler
 
     @delta_rotation_euler.setter
     def delta_rotation_euler(self, value): # V3
-        self.obj.delta_rotation_euler = to_array(value, (3,), "delta_rotation_euler")
+        self.object.delta_rotation_euler = to_array(value, (3,), "delta_rotation_euler")
 
     @property
     def delta_rotation_quaternion(self): # V4
-        return self.obj.delta_rotation_quaternion
+        return self.object.delta_rotation_quaternion
 
     @delta_rotation_quaternion.setter
     def delta_rotation_quaternion(self, value): # V4
-        self.obj.delta_rotation_quaternion = to_array(value, (4,), "delta_rotation_quaternion")
+        self.object.delta_rotation_quaternion = to_array(value, (4,), "delta_rotation_quaternion")
 
     @property
     def delta_scale(self): # V3
-        return self.obj.delta_scale
+        return self.object.delta_scale
 
     @delta_scale.setter
     def delta_scale(self, value): # V3
-        self.obj.delta_scale = to_array(value, (3,), "delta_scale")
+        self.object.delta_scale = to_array(value, (3,), "delta_scale")
 
     @property
     def empty_display_size(self): # float
-        return self.obj.empty_display_size
+        return self.object.empty_display_size
 
     @empty_display_size.setter
     def empty_display_size(self, value): # float
-        self.obj.empty_display_size = value
+        self.object.empty_display_size = value
 
     @property
     def empty_image_offset(self): # V2
-        return self.obj.empty_image_offset
+        return self.object.empty_image_offset
 
     @empty_image_offset.setter
     def empty_image_offset(self, value): # V2
-        self.obj.empty_image_offset = to_array(value, (2,), "empty_image_offset")
+        self.object.empty_image_offset = to_array(value, (2,), "empty_image_offset")
 
     @property
     def dimensions(self): # V3
-        return self.obj.dimensions
+        return self.object.dimensions
 
     @dimensions.setter
     def dimensions(self, value): # V3
-        self.obj.dimensions = to_array(value, (3,), "dimensions")
+        self.object.dimensions = to_array(value, (3,), "dimensions")
 
     @property
     def hide_render(self): # bool
-        return self.obj.hide_render
+        return self.object.hide_render
 
     @hide_render.setter
     def hide_render(self, value): # bool
-        self.obj.hide_render = value
+        self.object.hide_render = value
 
     @property
     def hide_select(self): # bool
-        return self.obj.hide_select
+        return self.object.hide_select
 
     @hide_select.setter
     def hide_select(self, value): # bool
-        self.obj.hide_select = value
+        self.object.hide_select = value
 
     @property
     def hide_viewport(self): # bool
-        return self.obj.hide_viewport
+        return self.object.hide_viewport
 
     @hide_viewport.setter
     def hide_viewport(self, value): # bool
-        self.obj.hide_viewport = value
+        self.object.hide_viewport = value
 
     @property
     def instance_faces_scale(self): # float
-        return self.obj.instance_faces_scale
+        return self.object.instance_faces_scale
 
     @instance_faces_scale.setter
     def instance_faces_scale(self, value): # float
-        self.obj.instance_faces_scale = value
+        self.object.instance_faces_scale = value
 
     @property
     def location(self): # V3
-        return self.obj.location
+        return self.object.location
 
     @property
     def x(self):
-        return self.obj.location[0]
+        return self.object.location[0]
 
     @property
     def y(self):
-        return self.obj.location[1]
+        return self.object.location[1]
 
     @property
     def z(self):
-        return self.obj.location[2]
+        return self.object.location[2]
 
     @location.setter
     def location(self, value): # V3
-        self.obj.location = to_array(value, (3,), "location")
+        self.object.location = to_array(value, (3,), "location")
 
     @x.setter
     def x(self, value):
-        self.obj.location[0] = value
+        self.object.location[0] = value
 
     @y.setter
     def y(self, value):
-        self.obj.location[1] = value
+        self.object.location[1] = value
 
     @z.setter
     def z(self, value):
-        self.obj.location[2] = value
+        self.object.location[2] = value
 
     @property
     def lock_scale(self): # bool
-        return self.obj.lock_scale
+        return self.object.lock_scale
 
     @lock_scale.setter
     def lock_scale(self, value): # bool
-        self.obj.lock_scale = value
+        self.object.lock_scale = value
 
     @property
     def matrix_basis(self): # M4
-        return self.obj.matrix_basis
+        return self.object.matrix_basis
 
     @property
     def matrix_local(self): # M4
-        return self.obj.matrix_local
+        return self.object.matrix_local
 
     @property
     def matrix_parent_inverse(self): # M4
-        return self.obj.matrix_parent_inverse
+        return self.object.matrix_parent_inverse
 
     @property
     def matrix_world(self): # M4
-        return self.obj.matrix_world
+        return self.object.matrix_world
 
     @property
     def pass_index(self): # int
-        return self.obj.pass_index
+        return self.object.pass_index
 
     @pass_index.setter
     def pass_index(self, value): # int
-        self.obj.pass_index = value
+        self.object.pass_index = value
 
     @property
     def rotation_euler(self): # V3
-        return self.obj.rotation_euler
+        return self.object.rotation_euler
 
     @property
     def rx(self):
-        return self.obj.rotation_euler[0]
+        return self.object.rotation_euler[0]
 
     @property
     def ry(self):
-        return self.obj.rotation_euler[1]
+        return self.object.rotation_euler[1]
 
     @property
     def rz(self):
-        return self.obj.rotation_euler[2]
+        return self.object.rotation_euler[2]
 
     @rotation_euler.setter
     def rotation_euler(self, value): # V3
-        self.obj.rotation_euler = to_array(value, (3,), "rotation_euler")
+        self.object.rotation_euler = to_array(value, (3,), "rotation_euler")
 
     @rx.setter
     def rx(self, value):
-        self.obj.rotation_euler[0] = value
+        self.object.rotation_euler[0] = value
 
     @ry.setter
     def ry(self, value):
-        self.obj.rotation_euler[1] = value
+        self.object.rotation_euler[1] = value
 
     @rz.setter
     def rz(self, value):
-        self.obj.rotation_euler[2] = value
+        self.object.rotation_euler[2] = value
 
     @property
     def rotation_mode(self): # str
-        return self.obj.rotation_mode
+        return self.object.rotation_mode
 
     @rotation_mode.setter
     def rotation_mode(self, value): # str
-        self.obj.rotation_mode = value
+        self.object.rotation_mode = value
 
     @property
     def rotation_quaternion(self): # V4
-        return self.obj.rotation_quaternion
+        return self.object.rotation_quaternion
 
     @rotation_quaternion.setter
     def rotation_quaternion(self, value): # V4
-        self.obj.rotation_quaternion = to_array(value, (4,), "rotation_quaternion")
+        self.object.rotation_quaternion = to_array(value, (4,), "rotation_quaternion")
 
     @property
     def scale(self): # V3
-        return self.obj.scale
+        return self.object.scale
 
     @property
     def sx(self):
-        return self.obj.scale[0]
+        return self.object.scale[0]
 
     @property
     def sy(self):
-        return self.obj.scale[1]
+        return self.object.scale[1]
 
     @property
     def sz(self):
-        return self.obj.scale[2]
+        return self.object.scale[2]
 
     @scale.setter
     def scale(self, value): # V3
-        self.obj.scale = to_array(value, (3,), "scale")
+        self.object.scale = to_array(value, (3,), "scale")
 
     @sx.setter
     def sx(self, value):
-        self.obj.scale[0] = value
+        self.object.scale[0] = value
 
     @sy.setter
     def sy(self, value):
-        self.obj.scale[1] = value
+        self.object.scale[1] = value
 
     @sz.setter
     def sz(self, value):
-        self.obj.scale[2] = value
+        self.object.scale[2] = value
 
     @property
     def show_all_edges(self): # bool
-        return self.obj.show_all_edges
+        return self.object.show_all_edges
 
     @show_all_edges.setter
     def show_all_edges(self, value): # bool
-        self.obj.show_all_edges = value
+        self.object.show_all_edges = value
 
     @property
     def show_axis(self): # bool
-        return self.obj.show_axis
+        return self.object.show_axis
 
     @show_axis.setter
     def show_axis(self, value): # bool
-        self.obj.show_axis = value
+        self.object.show_axis = value
 
     @property
     def show_bounds(self): # bool
-        return self.obj.show_bounds
+        return self.object.show_bounds
 
     @show_bounds.setter
     def show_bounds(self, value): # bool
-        self.obj.show_bounds = value
+        self.object.show_bounds = value
 
     @property
     def show_empty_image_only_axis_aligned(self): # bool
-        return self.obj.show_empty_image_only_axis_aligned
+        return self.object.show_empty_image_only_axis_aligned
 
     @show_empty_image_only_axis_aligned.setter
     def show_empty_image_only_axis_aligned(self, value): # bool
-        self.obj.show_empty_image_only_axis_aligned = value
+        self.object.show_empty_image_only_axis_aligned = value
 
     @property
     def show_empty_image_orthographic(self): # bool
-        return self.obj.show_empty_image_orthographic
+        return self.object.show_empty_image_orthographic
 
     @show_empty_image_orthographic.setter
     def show_empty_image_orthographic(self, value): # bool
-        self.obj.show_empty_image_orthographic = value
+        self.object.show_empty_image_orthographic = value
 
     @property
     def show_empty_image_perspective(self): # bool
-        return self.obj.show_empty_image_perspective
+        return self.object.show_empty_image_perspective
 
     @show_empty_image_perspective.setter
     def show_empty_image_perspective(self, value): # bool
-        self.obj.show_empty_image_perspective = value
+        self.object.show_empty_image_perspective = value
 
     @property
     def show_in_front(self): # bool
-        return self.obj.show_in_front
+        return self.object.show_in_front
 
     @show_in_front.setter
     def show_in_front(self, value): # bool
-        self.obj.show_in_front = value
+        self.object.show_in_front = value
 
     @property
     def show_instancer_for_render(self): # bool
-        return self.obj.show_instancer_for_render
+        return self.object.show_instancer_for_render
 
     @show_instancer_for_render.setter
     def show_instancer_for_render(self, value): # bool
-        self.obj.show_instancer_for_render = value
+        self.object.show_instancer_for_render = value
 
     @property
     def show_instancer_for_viewport(self): # bool
-        return self.obj.show_instancer_for_viewport
+        return self.object.show_instancer_for_viewport
 
     @show_instancer_for_viewport.setter
     def show_instancer_for_viewport(self, value): # bool
-        self.obj.show_instancer_for_viewport = value
+        self.object.show_instancer_for_viewport = value
 
     @property
     def show_name(self): # bool
-        return self.obj.show_name
+        return self.object.show_name
 
     @show_name.setter
     def show_name(self, value): # bool
-        self.obj.show_name = value
+        self.object.show_name = value
 
     @property
     def show_only_shape_key(self): # bool
-        return self.obj.show_only_shape_key
+        return self.object.show_only_shape_key
 
     @show_only_shape_key.setter
     def show_only_shape_key(self, value): # bool
-        self.obj.show_only_shape_key = value
+        self.object.show_only_shape_key = value
 
     @property
     def show_texture_space(self): # bool
-        return self.obj.show_texture_space
+        return self.object.show_texture_space
 
     @show_texture_space.setter
     def show_texture_space(self, value): # bool
-        self.obj.show_texture_space = value
+        self.object.show_texture_space = value
 
     @property
     def show_transparent(self): # bool
-        return self.obj.show_transparent
+        return self.object.show_transparent
 
     @show_transparent.setter
     def show_transparent(self, value): # bool
-        self.obj.show_transparent = value
+        self.object.show_transparent = value
 
     @property
     def show_wire(self): # bool
-        return self.obj.show_wire
+        return self.object.show_wire
 
     @show_wire.setter
     def show_wire(self, value): # bool
-        self.obj.show_wire = value
+        self.object.show_wire = value
 
     @property
     def track_axis(self): # str
-        return self.obj.track_axis
+        return self.object.track_axis
 
     @track_axis.setter
     def track_axis(self, value): # str
-        self.obj.track_axis = value
+        self.object.track_axis = value
 
     @property
     def type(self): # str
-        return self.obj.type
+        return self.object.type
 
     @property
     def up_axis(self): # str
-        return self.obj.up_axis
+        return self.object.up_axis
 
     @up_axis.setter
     def up_axis(self, value): # str
-        self.obj.up_axis = value
+        self.object.up_axis = value
 
     @property
     def use_empty_image_alpha(self): # bool
-        return self.obj.use_empty_image_alpha
+        return self.object.use_empty_image_alpha
 
     @use_empty_image_alpha.setter
     def use_empty_image_alpha(self, value): # bool
-        self.obj.use_empty_image_alpha = value
+        self.object.use_empty_image_alpha = value
 
     @property
     def use_instance_faces_scale(self): # bool
-        return self.obj.use_instance_faces_scale
+        return self.object.use_instance_faces_scale
 
     @use_instance_faces_scale.setter
     def use_instance_faces_scale(self, value): # bool
-        self.obj.use_instance_faces_scale = value
+        self.object.use_instance_faces_scale = value
 
     @property
     def use_instance_vertices_rotation(self): # bool
-        return self.obj.use_instance_vertices_rotation
+        return self.object.use_instance_vertices_rotation
 
     @use_instance_vertices_rotation.setter
     def use_instance_vertices_rotation(self, value): # bool
-        self.obj.use_instance_vertices_rotation = value
+        self.object.use_instance_vertices_rotation = value
 
     @property
     def use_shape_key_edit_mode(self): # bool
-        return self.obj.use_shape_key_edit_mode
+        return self.object.use_shape_key_edit_mode
 
     @use_shape_key_edit_mode.setter
     def use_shape_key_edit_mode(self, value): # bool
-        self.obj.use_shape_key_edit_mode = value
+        self.object.use_shape_key_edit_mode = value
 
 #================================================================================
 # Array of WObjects
 
-class WObjects(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WObject)
-        self._cache_active_material_indices = None
-        self._cache_active_shape_key_indices = None
-        self._cache_colors                  = None
-        self._cache_delta_locations         = None
-        self._cache_delta_rotation_eulers   = None
-        self._cache_delta_rotation_quaternions = None
-        self._cache_delta_scales            = None
-        self._cache_empty_display_sizes     = None
-        self._cache_empty_image_offsets     = None
-        self._cache_dimensions_s            = None
-        self._cache_hide_renders            = None
-        self._cache_hide_selects            = None
-        self._cache_hide_viewports          = None
-        self._cache_instance_faces_scales   = None
-        self._cache_locations               = None
-        self._cache_lock_scales             = None
-        self._cache_pass_indices            = None
-        self._cache_rotation_eulers         = None
-        self._cache_rotation_modes          = None
-        self._cache_rotation_quaternions    = None
-        self._cache_scales                  = None
-        self._cache_show_all_edges_s        = None
-        self._cache_show_axis_s             = None
-        self._cache_show_bounds_s           = None
-        self._cache_show_empty_image_only_axis_aligneds = None
-        self._cache_show_empty_image_orthographics = None
-        self._cache_show_empty_image_perspectives = None
-        self._cache_show_in_fronts          = None
-        self._cache_show_instancer_for_renders = None
-        self._cache_show_instancer_for_viewports = None
-        self._cache_show_names              = None
-        self._cache_show_only_shape_keys    = None
-        self._cache_show_texture_spaces     = None
-        self._cache_show_transparents       = None
-        self._cache_show_wires              = None
-        self._cache_track_axis_s            = None
-        self._cache_types                   = None
-        self._cache_up_axis_s               = None
-        self._cache_use_empty_image_alphas  = None
-        self._cache_use_instance_faces_scales = None
-        self._cache_use_instance_vertices_rotations = None
-        self._cache_use_shape_key_edit_modes = None
-        self._cache_quaternions             = None
-        self._cache_hides                   = None
+class WObjects(Wrapper):
+    def __init__(self, name):
+        super().__init__(self)
+        self.name = name
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_active_material_indices = None
-        self._cache_active_shape_key_indices = None
-        self._cache_colors                  = None
-        self._cache_delta_locations         = None
-        self._cache_delta_rotation_eulers   = None
-        self._cache_delta_rotation_quaternions = None
-        self._cache_delta_scales            = None
-        self._cache_empty_display_sizes     = None
-        self._cache_empty_image_offsets     = None
-        self._cache_dimensions_s            = None
-        self._cache_hide_renders            = None
-        self._cache_hide_selects            = None
-        self._cache_hide_viewports          = None
-        self._cache_instance_faces_scales   = None
-        self._cache_locations               = None
-        self._cache_lock_scales             = None
-        self._cache_pass_indices            = None
-        self._cache_rotation_eulers         = None
-        self._cache_rotation_modes          = None
-        self._cache_rotation_quaternions    = None
-        self._cache_scales                  = None
-        self._cache_show_all_edges_s        = None
-        self._cache_show_axis_s             = None
-        self._cache_show_bounds_s           = None
-        self._cache_show_empty_image_only_axis_aligneds = None
-        self._cache_show_empty_image_orthographics = None
-        self._cache_show_empty_image_perspectives = None
-        self._cache_show_in_fronts          = None
-        self._cache_show_instancer_for_renders = None
-        self._cache_show_instancer_for_viewports = None
-        self._cache_show_names              = None
-        self._cache_show_only_shape_keys    = None
-        self._cache_show_texture_spaces     = None
-        self._cache_show_transparents       = None
-        self._cache_show_wires              = None
-        self._cache_track_axis_s            = None
-        self._cache_types                   = None
-        self._cache_up_axis_s               = None
-        self._cache_use_empty_image_alphas  = None
-        self._cache_use_instance_faces_scales = None
-        self._cache_use_instance_vertices_rotations = None
-        self._cache_use_shape_key_edit_modes = None
-        self._cache_quaternions             = None
-        self._cache_hides                   = None
+    @property
+    def top_obj(self):
+        return bpy.data.collections[self.name]
+
+    @property
+    def objects(self): # The wrapped Blender objects
+        return bpy.data.collections[self.name].objects
+
+    def __len__(self):
+        return len(bpy.data.collections[self.name].objects)
+
+    def __getitem__(self, index):
+        return WObject(bpy.data.collections[self.name].objects[index].name)
+
+    @property
+    def item_class(self):
+        return WObject
 
     @property
     def active_material_indices(self): # Array of int
-        if self._cache_active_material_indices is None:
-            self._cache_active_material_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('active_material_index', self._cache_active_material_indices)
-        return self._cache_active_material_indices
+        array = np.empty(len(self), np.int)
+        bpy.data.collections[self.name].objects.foreach_get('active_material_index', array)
+        return array
 
     @active_material_indices.setter
     def active_material_indices(self, values): # Arrayf of int
-        self._cache_active_material_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('active_material_index', self._cache_active_material_indices)
+        bpy.data.collections[self.name].objects.foreach_set('active_material_index', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def active_shape_key_indices(self): # Array of int
-        if self._cache_active_shape_key_indices is None:
-            self._cache_active_shape_key_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('active_shape_key_index', self._cache_active_shape_key_indices)
-        return self._cache_active_shape_key_indices
+        array = np.empty(len(self), np.int)
+        bpy.data.collections[self.name].objects.foreach_get('active_shape_key_index', array)
+        return array
 
     @active_shape_key_indices.setter
     def active_shape_key_indices(self, values): # Arrayf of int
-        self._cache_active_shape_key_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('active_shape_key_index', self._cache_active_shape_key_indices)
+        bpy.data.collections[self.name].objects.foreach_set('active_shape_key_index', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def colors(self): # Array of V4
-        if self._cache_colors is None:
-            self._cache_colors = np.empty(len(self)*4, np.float)
-            self.coll.foreach_get('color', self._cache_colors)
-            self._cache_colors = self._cache_colors.reshape(len(self), 4)
-        return self._cache_colors
+        array = np.empty(len(self)*4, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('color', array)
+        return array.reshape(len(self), 4)
 
     @colors.setter
     def colors(self, values): # Arrayf of V4
-        self._cache_colors = to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors')
-        self.coll.foreach_set('color', self._cache_colors.reshape(len(self) * 4))
+        bpy.data.collections[self.name].objects.foreach_set('color', to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors').reshape(len(self) * 4))
 
     @property
     def delta_locations(self): # Array of V3
-        if self._cache_delta_locations is None:
-            self._cache_delta_locations = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('delta_location', self._cache_delta_locations)
-            self._cache_delta_locations = self._cache_delta_locations.reshape(len(self), 3)
-        return self._cache_delta_locations
+        array = np.empty(len(self)*3, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('delta_location', array)
+        return array.reshape(len(self), 3)
 
     @delta_locations.setter
     def delta_locations(self, values): # Arrayf of V3
-        self._cache_delta_locations = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('delta_location', self._cache_delta_locations.reshape(len(self) * 3))
+        bpy.data.collections[self.name].objects.foreach_set('delta_location', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     @property
     def delta_rotation_eulers(self): # Array of V3
-        if self._cache_delta_rotation_eulers is None:
-            self._cache_delta_rotation_eulers = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('delta_rotation_euler', self._cache_delta_rotation_eulers)
-            self._cache_delta_rotation_eulers = self._cache_delta_rotation_eulers.reshape(len(self), 3)
-        return self._cache_delta_rotation_eulers
+        array = np.empty(len(self)*3, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('delta_rotation_euler', array)
+        return array.reshape(len(self), 3)
 
     @delta_rotation_eulers.setter
     def delta_rotation_eulers(self, values): # Arrayf of V3
-        self._cache_delta_rotation_eulers = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('delta_rotation_euler', self._cache_delta_rotation_eulers.reshape(len(self) * 3))
+        bpy.data.collections[self.name].objects.foreach_set('delta_rotation_euler', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     @property
     def delta_rotation_quaternions(self): # Array of V4
-        if self._cache_delta_rotation_quaternions is None:
-            self._cache_delta_rotation_quaternions = np.empty(len(self)*4, np.float)
-            self.coll.foreach_get('delta_rotation_quaternion', self._cache_delta_rotation_quaternions)
-            self._cache_delta_rotation_quaternions = self._cache_delta_rotation_quaternions.reshape(len(self), 4)
-        return self._cache_delta_rotation_quaternions
+        array = np.empty(len(self)*4, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('delta_rotation_quaternion', array)
+        return array.reshape(len(self), 4)
 
     @delta_rotation_quaternions.setter
     def delta_rotation_quaternions(self, values): # Arrayf of V4
-        self._cache_delta_rotation_quaternions = to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors')
-        self.coll.foreach_set('delta_rotation_quaternion', self._cache_delta_rotation_quaternions.reshape(len(self) * 4))
+        bpy.data.collections[self.name].objects.foreach_set('delta_rotation_quaternion', to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors').reshape(len(self) * 4))
 
     @property
     def delta_scales(self): # Array of V3
-        if self._cache_delta_scales is None:
-            self._cache_delta_scales = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('delta_scale', self._cache_delta_scales)
-            self._cache_delta_scales = self._cache_delta_scales.reshape(len(self), 3)
-        return self._cache_delta_scales
+        array = np.empty(len(self)*3, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('delta_scale', array)
+        return array.reshape(len(self), 3)
 
     @delta_scales.setter
     def delta_scales(self, values): # Arrayf of V3
-        self._cache_delta_scales = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('delta_scale', self._cache_delta_scales.reshape(len(self) * 3))
+        bpy.data.collections[self.name].objects.foreach_set('delta_scale', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     @property
     def empty_display_sizes(self): # Array of float
-        if self._cache_empty_display_sizes is None:
-            self._cache_empty_display_sizes = np.empty(len(self), np.float)
-            self.coll.foreach_get('empty_display_size', self._cache_empty_display_sizes)
-        return self._cache_empty_display_sizes
+        array = np.empty(len(self), np.float)
+        bpy.data.collections[self.name].objects.foreach_get('empty_display_size', array)
+        return array
 
     @empty_display_sizes.setter
     def empty_display_sizes(self, values): # Arrayf of float
-        self._cache_empty_display_sizes = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('empty_display_size', self._cache_empty_display_sizes)
+        bpy.data.collections[self.name].objects.foreach_set('empty_display_size', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def empty_image_offsets(self): # Array of V2
-        if self._cache_empty_image_offsets is None:
-            self._cache_empty_image_offsets = np.empty(len(self)*2, np.float)
-            self.coll.foreach_get('empty_image_offset', self._cache_empty_image_offsets)
-            self._cache_empty_image_offsets = self._cache_empty_image_offsets.reshape(len(self), 2)
-        return self._cache_empty_image_offsets
+        array = np.empty(len(self)*2, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('empty_image_offset', array)
+        return array.reshape(len(self), 2)
 
     @empty_image_offsets.setter
     def empty_image_offsets(self, values): # Arrayf of V2
-        self._cache_empty_image_offsets = to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors')
-        self.coll.foreach_set('empty_image_offset', self._cache_empty_image_offsets.reshape(len(self) * 2))
+        bpy.data.collections[self.name].objects.foreach_set('empty_image_offset', to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors').reshape(len(self) * 2))
 
     @property
     def dimensions_s(self): # Array of V3
-        if self._cache_dimensions_s is None:
-            self._cache_dimensions_s = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('dimensions', self._cache_dimensions_s)
-            self._cache_dimensions_s = self._cache_dimensions_s.reshape(len(self), 3)
-        return self._cache_dimensions_s
+        array = np.empty(len(self)*3, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('dimensions', array)
+        return array.reshape(len(self), 3)
 
     @dimensions_s.setter
     def dimensions_s(self, values): # Arrayf of V3
-        self._cache_dimensions_s = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('dimensions', self._cache_dimensions_s.reshape(len(self) * 3))
+        bpy.data.collections[self.name].objects.foreach_set('dimensions', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     @property
     def hide_renders(self): # Array of bool
-        if self._cache_hide_renders is None:
-            self._cache_hide_renders = np.empty(len(self), np.bool)
-            self.coll.foreach_get('hide_render', self._cache_hide_renders)
-        return self._cache_hide_renders
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('hide_render', array)
+        return array
 
     @hide_renders.setter
     def hide_renders(self, values): # Arrayf of bool
-        self._cache_hide_renders = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('hide_render', self._cache_hide_renders)
+        bpy.data.collections[self.name].objects.foreach_set('hide_render', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def hide_selects(self): # Array of bool
-        if self._cache_hide_selects is None:
-            self._cache_hide_selects = np.empty(len(self), np.bool)
-            self.coll.foreach_get('hide_select', self._cache_hide_selects)
-        return self._cache_hide_selects
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('hide_select', array)
+        return array
 
     @hide_selects.setter
     def hide_selects(self, values): # Arrayf of bool
-        self._cache_hide_selects = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('hide_select', self._cache_hide_selects)
+        bpy.data.collections[self.name].objects.foreach_set('hide_select', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def hide_viewports(self): # Array of bool
-        if self._cache_hide_viewports is None:
-            self._cache_hide_viewports = np.empty(len(self), np.bool)
-            self.coll.foreach_get('hide_viewport', self._cache_hide_viewports)
-        return self._cache_hide_viewports
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('hide_viewport', array)
+        return array
 
     @hide_viewports.setter
     def hide_viewports(self, values): # Arrayf of bool
-        self._cache_hide_viewports = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('hide_viewport', self._cache_hide_viewports)
+        bpy.data.collections[self.name].objects.foreach_set('hide_viewport', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def instance_faces_scales(self): # Array of float
-        if self._cache_instance_faces_scales is None:
-            self._cache_instance_faces_scales = np.empty(len(self), np.float)
-            self.coll.foreach_get('instance_faces_scale', self._cache_instance_faces_scales)
-        return self._cache_instance_faces_scales
+        array = np.empty(len(self), np.float)
+        bpy.data.collections[self.name].objects.foreach_get('instance_faces_scale', array)
+        return array
 
     @instance_faces_scales.setter
     def instance_faces_scales(self, values): # Arrayf of float
-        self._cache_instance_faces_scales = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('instance_faces_scale', self._cache_instance_faces_scales)
+        bpy.data.collections[self.name].objects.foreach_set('instance_faces_scale', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def locations(self): # Array of V3
-        if self._cache_locations is None:
-            self._cache_locations = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('location', self._cache_locations)
-            self._cache_locations = self._cache_locations.reshape(len(self), 3)
-        return self._cache_locations
+        array = np.empty(len(self)*3, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('location', array)
+        return array.reshape(len(self), 3)
 
     @locations.setter
     def locations(self, values): # Arrayf of V3
-        self._cache_locations = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('location', self._cache_locations.reshape(len(self) * 3))
+        bpy.data.collections[self.name].objects.foreach_set('location', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     # xyzw access to locations
 
@@ -3058,8 +2490,9 @@ class WObjects(CollWrapper):
 
     @xs.setter
     def xs(self, values):
-        self.locations[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.locations = self._cache_locations
+        locations = self.locations
+        locations[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.locations = locations
 
     @property
     def ys(self): 
@@ -3067,8 +2500,9 @@ class WObjects(CollWrapper):
 
     @ys.setter
     def ys(self, values):
-        self.locations[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.locations = self._cache_locations
+        locations = self.locations
+        locations[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.locations = locations
 
     @property
     def zs(self): 
@@ -3076,45 +2510,39 @@ class WObjects(CollWrapper):
 
     @zs.setter
     def zs(self, values):
-        self.locations[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.locations = self._cache_locations
+        locations = self.locations
+        locations[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.locations = locations
 
     @property
     def lock_scales(self): # Array of bool
-        if self._cache_lock_scales is None:
-            self._cache_lock_scales = np.empty(len(self), np.bool)
-            self.coll.foreach_get('lock_scale', self._cache_lock_scales)
-        return self._cache_lock_scales
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('lock_scale', array)
+        return array
 
     @lock_scales.setter
     def lock_scales(self, values): # Arrayf of bool
-        self._cache_lock_scales = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('lock_scale', self._cache_lock_scales)
+        bpy.data.collections[self.name].objects.foreach_set('lock_scale', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def pass_indices(self): # Array of int
-        if self._cache_pass_indices is None:
-            self._cache_pass_indices = np.empty(len(self), np.int)
-            self.coll.foreach_get('pass_index', self._cache_pass_indices)
-        return self._cache_pass_indices
+        array = np.empty(len(self), np.int)
+        bpy.data.collections[self.name].objects.foreach_get('pass_index', array)
+        return array
 
     @pass_indices.setter
     def pass_indices(self, values): # Arrayf of int
-        self._cache_pass_indices = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('pass_index', self._cache_pass_indices)
+        bpy.data.collections[self.name].objects.foreach_set('pass_index', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def rotation_eulers(self): # Array of V3
-        if self._cache_rotation_eulers is None:
-            self._cache_rotation_eulers = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('rotation_euler', self._cache_rotation_eulers)
-            self._cache_rotation_eulers = self._cache_rotation_eulers.reshape(len(self), 3)
-        return self._cache_rotation_eulers
+        array = np.empty(len(self)*3, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('rotation_euler', array)
+        return array.reshape(len(self), 3)
 
     @rotation_eulers.setter
     def rotation_eulers(self, values): # Arrayf of V3
-        self._cache_rotation_eulers = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('rotation_euler', self._cache_rotation_eulers.reshape(len(self) * 3))
+        bpy.data.collections[self.name].objects.foreach_set('rotation_euler', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     # xyzw access to rotation_eulers
 
@@ -3124,8 +2552,9 @@ class WObjects(CollWrapper):
 
     @rxs.setter
     def rxs(self, values):
-        self.rotation_eulers[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.rotation_eulers = self._cache_rotation_eulers
+        rotation_eulers = self.rotation_eulers
+        rotation_eulers[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.rotation_eulers = rotation_eulers
 
     @property
     def rys(self): 
@@ -3133,8 +2562,9 @@ class WObjects(CollWrapper):
 
     @rys.setter
     def rys(self, values):
-        self.rotation_eulers[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.rotation_eulers = self._cache_rotation_eulers
+        rotation_eulers = self.rotation_eulers
+        rotation_eulers[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.rotation_eulers = rotation_eulers
 
     @property
     def rzs(self): 
@@ -3142,48 +2572,44 @@ class WObjects(CollWrapper):
 
     @rzs.setter
     def rzs(self, values):
-        self.rotation_eulers[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.rotation_eulers = self._cache_rotation_eulers
+        rotation_eulers = self.rotation_eulers
+        rotation_eulers[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.rotation_eulers = rotation_eulers
 
     @property
     def rotation_modes(self): # Array of str
-        if self._cache_rotation_modes is None:
-            self._cache_rotation_modes = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_rotation_modes[i] = self[i].rotation_mode
-        return self._cache_rotation_modes
+        array = np.empty(len(self), np.object)
+        coll = bpy.data.collections[self.name].objects
+        for i in range(len(self)):
+            array[i] = coll[i].rotation_mode
+        return array
 
     @rotation_modes.setter
     def rotation_modes(self, values): # Arrayf of str
-        self._cache_rotation_modes = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = bpy.data.collections[self.name].objects
         for i in range(len(self)):
-            self[i].rotation_mode = self._cache_rotation_modes[i]
+            coll[i].rotation_mode = array[i]
 
     @property
     def rotation_quaternions(self): # Array of V4
-        if self._cache_rotation_quaternions is None:
-            self._cache_rotation_quaternions = np.empty(len(self)*4, np.float)
-            self.coll.foreach_get('rotation_quaternion', self._cache_rotation_quaternions)
-            self._cache_rotation_quaternions = self._cache_rotation_quaternions.reshape(len(self), 4)
-        return self._cache_rotation_quaternions
+        array = np.empty(len(self)*4, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('rotation_quaternion', array)
+        return array.reshape(len(self), 4)
 
     @rotation_quaternions.setter
     def rotation_quaternions(self, values): # Arrayf of V4
-        self._cache_rotation_quaternions = to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors')
-        self.coll.foreach_set('rotation_quaternion', self._cache_rotation_quaternions.reshape(len(self) * 4))
+        bpy.data.collections[self.name].objects.foreach_set('rotation_quaternion', to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors').reshape(len(self) * 4))
 
     @property
     def scales(self): # Array of V3
-        if self._cache_scales is None:
-            self._cache_scales = np.empty(len(self)*3, np.float)
-            self.coll.foreach_get('scale', self._cache_scales)
-            self._cache_scales = self._cache_scales.reshape(len(self), 3)
-        return self._cache_scales
+        array = np.empty(len(self)*3, np.float)
+        bpy.data.collections[self.name].objects.foreach_get('scale', array)
+        return array.reshape(len(self), 3)
 
     @scales.setter
     def scales(self, values): # Arrayf of V3
-        self._cache_scales = to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors')
-        self.coll.foreach_set('scale', self._cache_scales.reshape(len(self) * 3))
+        bpy.data.collections[self.name].objects.foreach_set('scale', to_array(values, (len(self), 3), f'3-vector or array of {len(self)} 3-vectors').reshape(len(self) * 3))
 
     # xyzw access to scales
 
@@ -3193,8 +2619,9 @@ class WObjects(CollWrapper):
 
     @sxs.setter
     def sxs(self, values):
-        self.scales[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.scales = self._cache_scales
+        scales = self.scales
+        scales[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.scales = scales
 
     @property
     def sys(self): 
@@ -3202,8 +2629,9 @@ class WObjects(CollWrapper):
 
     @sys.setter
     def sys(self, values):
-        self.scales[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.scales = self._cache_scales
+        scales = self.scales
+        scales[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.scales = scales
 
     @property
     def szs(self): 
@@ -3211,288 +2639,227 @@ class WObjects(CollWrapper):
 
     @szs.setter
     def szs(self, values):
-        self.scales[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.scales = self._cache_scales
+        scales = self.scales
+        scales[:, 2] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.scales = scales
 
     @property
     def show_all_edges_s(self): # Array of bool
-        if self._cache_show_all_edges_s is None:
-            self._cache_show_all_edges_s = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_all_edges', self._cache_show_all_edges_s)
-        return self._cache_show_all_edges_s
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_all_edges', array)
+        return array
 
     @show_all_edges_s.setter
     def show_all_edges_s(self, values): # Arrayf of bool
-        self._cache_show_all_edges_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_all_edges', self._cache_show_all_edges_s)
+        bpy.data.collections[self.name].objects.foreach_set('show_all_edges', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_axis_s(self): # Array of bool
-        if self._cache_show_axis_s is None:
-            self._cache_show_axis_s = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_axis', self._cache_show_axis_s)
-        return self._cache_show_axis_s
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_axis', array)
+        return array
 
     @show_axis_s.setter
     def show_axis_s(self, values): # Arrayf of bool
-        self._cache_show_axis_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_axis', self._cache_show_axis_s)
+        bpy.data.collections[self.name].objects.foreach_set('show_axis', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_bounds_s(self): # Array of bool
-        if self._cache_show_bounds_s is None:
-            self._cache_show_bounds_s = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_bounds', self._cache_show_bounds_s)
-        return self._cache_show_bounds_s
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_bounds', array)
+        return array
 
     @show_bounds_s.setter
     def show_bounds_s(self, values): # Arrayf of bool
-        self._cache_show_bounds_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_bounds', self._cache_show_bounds_s)
+        bpy.data.collections[self.name].objects.foreach_set('show_bounds', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_empty_image_only_axis_aligneds(self): # Array of bool
-        if self._cache_show_empty_image_only_axis_aligneds is None:
-            self._cache_show_empty_image_only_axis_aligneds = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_empty_image_only_axis_aligned', self._cache_show_empty_image_only_axis_aligneds)
-        return self._cache_show_empty_image_only_axis_aligneds
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_empty_image_only_axis_aligned', array)
+        return array
 
     @show_empty_image_only_axis_aligneds.setter
     def show_empty_image_only_axis_aligneds(self, values): # Arrayf of bool
-        self._cache_show_empty_image_only_axis_aligneds = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_empty_image_only_axis_aligned', self._cache_show_empty_image_only_axis_aligneds)
+        bpy.data.collections[self.name].objects.foreach_set('show_empty_image_only_axis_aligned', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_empty_image_orthographics(self): # Array of bool
-        if self._cache_show_empty_image_orthographics is None:
-            self._cache_show_empty_image_orthographics = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_empty_image_orthographic', self._cache_show_empty_image_orthographics)
-        return self._cache_show_empty_image_orthographics
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_empty_image_orthographic', array)
+        return array
 
     @show_empty_image_orthographics.setter
     def show_empty_image_orthographics(self, values): # Arrayf of bool
-        self._cache_show_empty_image_orthographics = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_empty_image_orthographic', self._cache_show_empty_image_orthographics)
+        bpy.data.collections[self.name].objects.foreach_set('show_empty_image_orthographic', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_empty_image_perspectives(self): # Array of bool
-        if self._cache_show_empty_image_perspectives is None:
-            self._cache_show_empty_image_perspectives = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_empty_image_perspective', self._cache_show_empty_image_perspectives)
-        return self._cache_show_empty_image_perspectives
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_empty_image_perspective', array)
+        return array
 
     @show_empty_image_perspectives.setter
     def show_empty_image_perspectives(self, values): # Arrayf of bool
-        self._cache_show_empty_image_perspectives = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_empty_image_perspective', self._cache_show_empty_image_perspectives)
+        bpy.data.collections[self.name].objects.foreach_set('show_empty_image_perspective', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_in_fronts(self): # Array of bool
-        if self._cache_show_in_fronts is None:
-            self._cache_show_in_fronts = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_in_front', self._cache_show_in_fronts)
-        return self._cache_show_in_fronts
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_in_front', array)
+        return array
 
     @show_in_fronts.setter
     def show_in_fronts(self, values): # Arrayf of bool
-        self._cache_show_in_fronts = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_in_front', self._cache_show_in_fronts)
+        bpy.data.collections[self.name].objects.foreach_set('show_in_front', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_instancer_for_renders(self): # Array of bool
-        if self._cache_show_instancer_for_renders is None:
-            self._cache_show_instancer_for_renders = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_instancer_for_render', self._cache_show_instancer_for_renders)
-        return self._cache_show_instancer_for_renders
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_instancer_for_render', array)
+        return array
 
     @show_instancer_for_renders.setter
     def show_instancer_for_renders(self, values): # Arrayf of bool
-        self._cache_show_instancer_for_renders = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_instancer_for_render', self._cache_show_instancer_for_renders)
+        bpy.data.collections[self.name].objects.foreach_set('show_instancer_for_render', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_instancer_for_viewports(self): # Array of bool
-        if self._cache_show_instancer_for_viewports is None:
-            self._cache_show_instancer_for_viewports = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_instancer_for_viewport', self._cache_show_instancer_for_viewports)
-        return self._cache_show_instancer_for_viewports
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_instancer_for_viewport', array)
+        return array
 
     @show_instancer_for_viewports.setter
     def show_instancer_for_viewports(self, values): # Arrayf of bool
-        self._cache_show_instancer_for_viewports = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_instancer_for_viewport', self._cache_show_instancer_for_viewports)
+        bpy.data.collections[self.name].objects.foreach_set('show_instancer_for_viewport', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_names(self): # Array of bool
-        if self._cache_show_names is None:
-            self._cache_show_names = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_name', self._cache_show_names)
-        return self._cache_show_names
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_name', array)
+        return array
 
     @show_names.setter
     def show_names(self, values): # Arrayf of bool
-        self._cache_show_names = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_name', self._cache_show_names)
+        bpy.data.collections[self.name].objects.foreach_set('show_name', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_only_shape_keys(self): # Array of bool
-        if self._cache_show_only_shape_keys is None:
-            self._cache_show_only_shape_keys = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_only_shape_key', self._cache_show_only_shape_keys)
-        return self._cache_show_only_shape_keys
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_only_shape_key', array)
+        return array
 
     @show_only_shape_keys.setter
     def show_only_shape_keys(self, values): # Arrayf of bool
-        self._cache_show_only_shape_keys = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_only_shape_key', self._cache_show_only_shape_keys)
+        bpy.data.collections[self.name].objects.foreach_set('show_only_shape_key', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_texture_spaces(self): # Array of bool
-        if self._cache_show_texture_spaces is None:
-            self._cache_show_texture_spaces = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_texture_space', self._cache_show_texture_spaces)
-        return self._cache_show_texture_spaces
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_texture_space', array)
+        return array
 
     @show_texture_spaces.setter
     def show_texture_spaces(self, values): # Arrayf of bool
-        self._cache_show_texture_spaces = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_texture_space', self._cache_show_texture_spaces)
+        bpy.data.collections[self.name].objects.foreach_set('show_texture_space', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_transparents(self): # Array of bool
-        if self._cache_show_transparents is None:
-            self._cache_show_transparents = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_transparent', self._cache_show_transparents)
-        return self._cache_show_transparents
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_transparent', array)
+        return array
 
     @show_transparents.setter
     def show_transparents(self, values): # Arrayf of bool
-        self._cache_show_transparents = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_transparent', self._cache_show_transparents)
+        bpy.data.collections[self.name].objects.foreach_set('show_transparent', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def show_wires(self): # Array of bool
-        if self._cache_show_wires is None:
-            self._cache_show_wires = np.empty(len(self), np.bool)
-            self.coll.foreach_get('show_wire', self._cache_show_wires)
-        return self._cache_show_wires
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('show_wire', array)
+        return array
 
     @show_wires.setter
     def show_wires(self, values): # Arrayf of bool
-        self._cache_show_wires = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('show_wire', self._cache_show_wires)
+        bpy.data.collections[self.name].objects.foreach_set('show_wire', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def track_axis_s(self): # Array of str
-        if self._cache_track_axis_s is None:
-            self._cache_track_axis_s = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_track_axis_s[i] = self[i].track_axis
-        return self._cache_track_axis_s
+        array = np.empty(len(self), np.object)
+        coll = bpy.data.collections[self.name].objects
+        for i in range(len(self)):
+            array[i] = coll[i].track_axis
+        return array
 
     @track_axis_s.setter
     def track_axis_s(self, values): # Arrayf of str
-        self._cache_track_axis_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = bpy.data.collections[self.name].objects
         for i in range(len(self)):
-            self[i].track_axis = self._cache_track_axis_s[i]
+            coll[i].track_axis = array[i]
 
     @property
     def types(self): # Array of str
-        if self._cache_types is None:
-            self._cache_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_types[i] = self[i].type
-        return self._cache_types
+        array = np.empty(len(self), np.object)
+        coll = bpy.data.collections[self.name].objects
+        for i in range(len(self)):
+            array[i] = coll[i].type
+        return array
 
     @property
     def up_axis_s(self): # Array of str
-        if self._cache_up_axis_s is None:
-            self._cache_up_axis_s = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_up_axis_s[i] = self[i].up_axis
-        return self._cache_up_axis_s
+        array = np.empty(len(self), np.object)
+        coll = bpy.data.collections[self.name].objects
+        for i in range(len(self)):
+            array[i] = coll[i].up_axis
+        return array
 
     @up_axis_s.setter
     def up_axis_s(self, values): # Arrayf of str
-        self._cache_up_axis_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = bpy.data.collections[self.name].objects
         for i in range(len(self)):
-            self[i].up_axis = self._cache_up_axis_s[i]
+            coll[i].up_axis = array[i]
 
     @property
     def use_empty_image_alphas(self): # Array of bool
-        if self._cache_use_empty_image_alphas is None:
-            self._cache_use_empty_image_alphas = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_empty_image_alpha', self._cache_use_empty_image_alphas)
-        return self._cache_use_empty_image_alphas
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('use_empty_image_alpha', array)
+        return array
 
     @use_empty_image_alphas.setter
     def use_empty_image_alphas(self, values): # Arrayf of bool
-        self._cache_use_empty_image_alphas = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_empty_image_alpha', self._cache_use_empty_image_alphas)
+        bpy.data.collections[self.name].objects.foreach_set('use_empty_image_alpha', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_instance_faces_scales(self): # Array of bool
-        if self._cache_use_instance_faces_scales is None:
-            self._cache_use_instance_faces_scales = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_instance_faces_scale', self._cache_use_instance_faces_scales)
-        return self._cache_use_instance_faces_scales
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('use_instance_faces_scale', array)
+        return array
 
     @use_instance_faces_scales.setter
     def use_instance_faces_scales(self, values): # Arrayf of bool
-        self._cache_use_instance_faces_scales = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_instance_faces_scale', self._cache_use_instance_faces_scales)
+        bpy.data.collections[self.name].objects.foreach_set('use_instance_faces_scale', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_instance_vertices_rotations(self): # Array of bool
-        if self._cache_use_instance_vertices_rotations is None:
-            self._cache_use_instance_vertices_rotations = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_instance_vertices_rotation', self._cache_use_instance_vertices_rotations)
-        return self._cache_use_instance_vertices_rotations
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('use_instance_vertices_rotation', array)
+        return array
 
     @use_instance_vertices_rotations.setter
     def use_instance_vertices_rotations(self, values): # Arrayf of bool
-        self._cache_use_instance_vertices_rotations = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_instance_vertices_rotation', self._cache_use_instance_vertices_rotations)
+        bpy.data.collections[self.name].objects.foreach_set('use_instance_vertices_rotation', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def use_shape_key_edit_modes(self): # Array of bool
-        if self._cache_use_shape_key_edit_modes is None:
-            self._cache_use_shape_key_edit_modes = np.empty(len(self), np.bool)
-            self.coll.foreach_get('use_shape_key_edit_mode', self._cache_use_shape_key_edit_modes)
-        return self._cache_use_shape_key_edit_modes
+        array = np.empty(len(self), np.bool)
+        bpy.data.collections[self.name].objects.foreach_get('use_shape_key_edit_mode', array)
+        return array
 
     @use_shape_key_edit_modes.setter
     def use_shape_key_edit_modes(self, values): # Arrayf of bool
-        self._cache_use_shape_key_edit_modes = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('use_shape_key_edit_mode', self._cache_use_shape_key_edit_modes)
-
-    @property
-    def quaternions(self): # Array of V4
-        if self._cache_quaternions is None:
-            self._cache_quaternions = np.empty(len(self)*4, np.float).reshape(len(self), 4)
-            for i in range(len(self)):
-                self._cache_quaternions[i] = self[i].quaternion
-        return self._cache_quaternions
-
-    @quaternions.setter
-    def quaternions(self, values): # Arrayf of V4
-        self._cache_quaternions = to_array(values, (len(self), 4), f'4-vector or array of {len(self)} 4-vectors')
-        for i in range(len(self)):
-            self[i].quaternion = self._cache_quaternions[i]
-
-    @property
-    def hides(self): # Array of bool
-        if self._cache_hides is None:
-            self._cache_hides = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_hides[i] = self[i].hide
-        return self._cache_hides
-
-    @hides.setter
-    def hides(self, values): # Arrayf of bool
-        self._cache_hides = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].hide = self._cache_hides[i]
+        bpy.data.collections[self.name].objects.foreach_set('use_shape_key_edit_mode', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     def orient(self, axis):
         _axis                 = to_array(axis, (len(self), 3), f'np.float or array of {len(self)} np.float')
@@ -3516,551 +2883,189 @@ class WObjects(CollWrapper):
 
 class WTexture(Wrapper):
 
+    def __init__(self, name):
+        super().__init__(self)
+        self.name = name
+
+    @property
+    def top_obj(self):
+        return bpy.data.textures[self.name]
+
+    @property
+    def texture(self): # The wrapped Blender texture
+        return bpy.data.textures[self.name]
+
+    @property
+    def bstruct(self): # The wrapped Blender texture
+        return bpy.data.textures[self.name]
+
     @property
     def cloud_type(self): # str
-        return self.obj.cloud_type
+        return self.texture.cloud_type
 
     @cloud_type.setter
     def cloud_type(self, value): # str
-        self.obj.cloud_type = value
+        self.texture.cloud_type = value
 
     @property
     def contrast(self): # float
-        return self.obj.contrast
+        return self.texture.contrast
 
     @contrast.setter
     def contrast(self, value): # float
-        self.obj.contrast = value
+        self.texture.contrast = value
 
     @property
     def factor_blue(self): # float
-        return self.obj.factor_blue
+        return self.texture.factor_blue
 
     @factor_blue.setter
     def factor_blue(self, value): # float
-        self.obj.factor_blue = value
+        self.texture.factor_blue = value
 
     @property
     def factor_green(self): # float
-        return self.obj.factor_green
+        return self.texture.factor_green
 
     @factor_green.setter
     def factor_green(self, value): # float
-        self.obj.factor_green = value
+        self.texture.factor_green = value
 
     @property
     def factor_red(self): # float
-        return self.obj.factor_red
+        return self.texture.factor_red
 
     @factor_red.setter
     def factor_red(self, value): # float
-        self.obj.factor_red = value
+        self.texture.factor_red = value
 
     @property
     def intensity(self): # float
-        return self.obj.intensity
+        return self.texture.intensity
 
     @intensity.setter
     def intensity(self, value): # float
-        self.obj.intensity = value
+        self.texture.intensity = value
 
     @property
     def is_embedded_data(self): # bool
-        return self.obj.is_embedded_data
+        return self.texture.is_embedded_data
 
     @property
     def is_evaluated(self): # bool
-        return self.obj.is_evaluated
+        return self.texture.is_evaluated
 
     @property
     def is_library_indirect(self): # bool
-        return self.obj.is_library_indirect
+        return self.texture.is_library_indirect
 
     @property
     def nabla(self): # float
-        return self.obj.nabla
+        return self.texture.nabla
 
     @nabla.setter
     def nabla(self, value): # float
-        self.obj.nabla = value
-
-    @property
-    def name(self): # str
-        return self.obj.name
-
-    @name.setter
-    def name(self, value): # str
-        self.obj.name = value
+        self.texture.nabla = value
 
     @property
     def name_full(self): # str
-        return self.obj.name_full
+        return self.texture.name_full
 
     @property
     def noise_basis(self): # str
-        return self.obj.noise_basis
+        return self.texture.noise_basis
 
     @noise_basis.setter
     def noise_basis(self, value): # str
-        self.obj.noise_basis = value
+        self.texture.noise_basis = value
 
     @property
     def noise_depth(self): # int
-        return self.obj.noise_depth
+        return self.texture.noise_depth
 
     @noise_depth.setter
     def noise_depth(self, value): # int
-        self.obj.noise_depth = value
+        self.texture.noise_depth = value
 
     @property
     def noise_scale(self): # float
-        return self.obj.noise_scale
+        return self.texture.noise_scale
 
     @noise_scale.setter
     def noise_scale(self, value): # float
-        self.obj.noise_scale = value
+        self.texture.noise_scale = value
 
     @property
     def noise_type(self): # str
-        return self.obj.noise_type
+        return self.texture.noise_type
 
     @noise_type.setter
     def noise_type(self, value): # str
-        self.obj.noise_type = value
+        self.texture.noise_type = value
 
     @property
     def saturation(self): # float
-        return self.obj.saturation
+        return self.texture.saturation
 
     @saturation.setter
     def saturation(self, value): # float
-        self.obj.saturation = value
+        self.texture.saturation = value
 
     @property
     def tag(self): # bool
-        return self.obj.tag
+        return self.texture.tag
 
     @tag.setter
     def tag(self, value): # bool
-        self.obj.tag = value
+        self.texture.tag = value
 
     @property
     def type(self): # str
-        return self.obj.type
+        return self.texture.type
 
     @type.setter
     def type(self, value): # str
-        self.obj.type = value
+        self.texture.type = value
 
     @property
     def use_clamp(self): # bool
-        return self.obj.use_clamp
+        return self.texture.use_clamp
 
     @use_clamp.setter
     def use_clamp(self, value): # bool
-        self.obj.use_clamp = value
+        self.texture.use_clamp = value
 
     @property
     def use_color_ramp(self): # bool
-        return self.obj.use_color_ramp
+        return self.texture.use_color_ramp
 
     @use_color_ramp.setter
     def use_color_ramp(self, value): # bool
-        self.obj.use_color_ramp = value
+        self.texture.use_color_ramp = value
 
     @property
     def use_fake_user(self): # bool
-        return self.obj.use_fake_user
+        return self.texture.use_fake_user
 
     @use_fake_user.setter
     def use_fake_user(self, value): # bool
-        self.obj.use_fake_user = value
+        self.texture.use_fake_user = value
 
     @property
     def use_nodes(self): # bool
-        return self.obj.use_nodes
+        return self.texture.use_nodes
 
     @use_nodes.setter
     def use_nodes(self, value): # bool
-        self.obj.use_nodes = value
+        self.texture.use_nodes = value
 
     @property
     def use_preview_alpha(self): # bool
-        return self.obj.use_preview_alpha
+        return self.texture.use_preview_alpha
 
     @use_preview_alpha.setter
     def use_preview_alpha(self, value): # bool
-        self.obj.use_preview_alpha = value
-
-#================================================================================
-# Array of WTextures
-
-class WTextures(ArrayOf):
-    def __init__(self, wowner):
-        super().__init__(wowner, WTexture)
-        self._cache_cloud_types             = None
-        self._cache_contrasts               = None
-        self._cache_factor_blues            = None
-        self._cache_factor_greens           = None
-        self._cache_factor_reds             = None
-        self._cache_intensitys              = None
-        self._cache_is_embedded_datas       = None
-        self._cache_is_evaluateds           = None
-        self._cache_is_library_indirects    = None
-        self._cache_nablas                  = None
-        self._cache_names                   = None
-        self._cache_name_fulls              = None
-        self._cache_noise_basis_s           = None
-        self._cache_noise_depths            = None
-        self._cache_noise_scales            = None
-        self._cache_noise_types             = None
-        self._cache_saturations             = None
-        self._cache_tags                    = None
-        self._cache_types                   = None
-        self._cache_use_clamps              = None
-        self._cache_use_color_ramps         = None
-        self._cache_use_fake_users          = None
-        self._cache_use_nodes_s             = None
-        self._cache_use_preview_alphas      = None
-
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_cloud_types             = None
-        self._cache_contrasts               = None
-        self._cache_factor_blues            = None
-        self._cache_factor_greens           = None
-        self._cache_factor_reds             = None
-        self._cache_intensitys              = None
-        self._cache_is_embedded_datas       = None
-        self._cache_is_evaluateds           = None
-        self._cache_is_library_indirects    = None
-        self._cache_nablas                  = None
-        self._cache_names                   = None
-        self._cache_name_fulls              = None
-        self._cache_noise_basis_s           = None
-        self._cache_noise_depths            = None
-        self._cache_noise_scales            = None
-        self._cache_noise_types             = None
-        self._cache_saturations             = None
-        self._cache_tags                    = None
-        self._cache_types                   = None
-        self._cache_use_clamps              = None
-        self._cache_use_color_ramps         = None
-        self._cache_use_fake_users          = None
-        self._cache_use_nodes_s             = None
-        self._cache_use_preview_alphas      = None
-
-    @property
-    def cloud_types(self): # Array of str
-        if self._cache_cloud_types is None:
-            self._cache_cloud_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_cloud_types[i] = self[i].cloud_type
-        return self._cache_cloud_types
-
-    @cloud_types.setter
-    def cloud_types(self, values): # Arrayf of str
-        self._cache_cloud_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].cloud_type = self._cache_cloud_types[i]
-
-    @property
-    def contrasts(self): # Array of float
-        if self._cache_contrasts is None:
-            self._cache_contrasts = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_contrasts[i] = self[i].contrast
-        return self._cache_contrasts
-
-    @contrasts.setter
-    def contrasts(self, values): # Arrayf of float
-        self._cache_contrasts = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].contrast = self._cache_contrasts[i]
-
-    @property
-    def factor_blues(self): # Array of float
-        if self._cache_factor_blues is None:
-            self._cache_factor_blues = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_factor_blues[i] = self[i].factor_blue
-        return self._cache_factor_blues
-
-    @factor_blues.setter
-    def factor_blues(self, values): # Arrayf of float
-        self._cache_factor_blues = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].factor_blue = self._cache_factor_blues[i]
-
-    @property
-    def factor_greens(self): # Array of float
-        if self._cache_factor_greens is None:
-            self._cache_factor_greens = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_factor_greens[i] = self[i].factor_green
-        return self._cache_factor_greens
-
-    @factor_greens.setter
-    def factor_greens(self, values): # Arrayf of float
-        self._cache_factor_greens = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].factor_green = self._cache_factor_greens[i]
-
-    @property
-    def factor_reds(self): # Array of float
-        if self._cache_factor_reds is None:
-            self._cache_factor_reds = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_factor_reds[i] = self[i].factor_red
-        return self._cache_factor_reds
-
-    @factor_reds.setter
-    def factor_reds(self, values): # Arrayf of float
-        self._cache_factor_reds = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].factor_red = self._cache_factor_reds[i]
-
-    @property
-    def intensitys(self): # Array of float
-        if self._cache_intensitys is None:
-            self._cache_intensitys = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_intensitys[i] = self[i].intensity
-        return self._cache_intensitys
-
-    @intensitys.setter
-    def intensitys(self, values): # Arrayf of float
-        self._cache_intensitys = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].intensity = self._cache_intensitys[i]
-
-    @property
-    def is_embedded_datas(self): # Array of bool
-        if self._cache_is_embedded_datas is None:
-            self._cache_is_embedded_datas = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_is_embedded_datas[i] = self[i].is_embedded_data
-        return self._cache_is_embedded_datas
-
-    @property
-    def is_evaluateds(self): # Array of bool
-        if self._cache_is_evaluateds is None:
-            self._cache_is_evaluateds = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_is_evaluateds[i] = self[i].is_evaluated
-        return self._cache_is_evaluateds
-
-    @property
-    def is_library_indirects(self): # Array of bool
-        if self._cache_is_library_indirects is None:
-            self._cache_is_library_indirects = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_is_library_indirects[i] = self[i].is_library_indirect
-        return self._cache_is_library_indirects
-
-    @property
-    def nablas(self): # Array of float
-        if self._cache_nablas is None:
-            self._cache_nablas = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_nablas[i] = self[i].nabla
-        return self._cache_nablas
-
-    @nablas.setter
-    def nablas(self, values): # Arrayf of float
-        self._cache_nablas = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].nabla = self._cache_nablas[i]
-
-    @property
-    def names(self): # Array of str
-        if self._cache_names is None:
-            self._cache_names = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_names[i] = self[i].name
-        return self._cache_names
-
-    @names.setter
-    def names(self, values): # Arrayf of str
-        self._cache_names = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].name = self._cache_names[i]
-
-    @property
-    def name_fulls(self): # Array of str
-        if self._cache_name_fulls is None:
-            self._cache_name_fulls = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_name_fulls[i] = self[i].name_full
-        return self._cache_name_fulls
-
-    @property
-    def noise_basis_s(self): # Array of str
-        if self._cache_noise_basis_s is None:
-            self._cache_noise_basis_s = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_noise_basis_s[i] = self[i].noise_basis
-        return self._cache_noise_basis_s
-
-    @noise_basis_s.setter
-    def noise_basis_s(self, values): # Arrayf of str
-        self._cache_noise_basis_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].noise_basis = self._cache_noise_basis_s[i]
-
-    @property
-    def noise_depths(self): # Array of int
-        if self._cache_noise_depths is None:
-            self._cache_noise_depths = np.empty(len(self), np.int)
-            for i in range(len(self)):
-                self._cache_noise_depths[i] = self[i].noise_depth
-        return self._cache_noise_depths
-
-    @noise_depths.setter
-    def noise_depths(self, values): # Arrayf of int
-        self._cache_noise_depths = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].noise_depth = self._cache_noise_depths[i]
-
-    @property
-    def noise_scales(self): # Array of float
-        if self._cache_noise_scales is None:
-            self._cache_noise_scales = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_noise_scales[i] = self[i].noise_scale
-        return self._cache_noise_scales
-
-    @noise_scales.setter
-    def noise_scales(self, values): # Arrayf of float
-        self._cache_noise_scales = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].noise_scale = self._cache_noise_scales[i]
-
-    @property
-    def noise_types(self): # Array of str
-        if self._cache_noise_types is None:
-            self._cache_noise_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_noise_types[i] = self[i].noise_type
-        return self._cache_noise_types
-
-    @noise_types.setter
-    def noise_types(self, values): # Arrayf of str
-        self._cache_noise_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].noise_type = self._cache_noise_types[i]
-
-    @property
-    def saturations(self): # Array of float
-        if self._cache_saturations is None:
-            self._cache_saturations = np.empty(len(self), np.float)
-            for i in range(len(self)):
-                self._cache_saturations[i] = self[i].saturation
-        return self._cache_saturations
-
-    @saturations.setter
-    def saturations(self, values): # Arrayf of float
-        self._cache_saturations = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].saturation = self._cache_saturations[i]
-
-    @property
-    def tags(self): # Array of bool
-        if self._cache_tags is None:
-            self._cache_tags = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_tags[i] = self[i].tag
-        return self._cache_tags
-
-    @tags.setter
-    def tags(self, values): # Arrayf of bool
-        self._cache_tags = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].tag = self._cache_tags[i]
-
-    @property
-    def types(self): # Array of str
-        if self._cache_types is None:
-            self._cache_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_types[i] = self[i].type
-        return self._cache_types
-
-    @types.setter
-    def types(self, values): # Arrayf of str
-        self._cache_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].type = self._cache_types[i]
-
-    @property
-    def use_clamps(self): # Array of bool
-        if self._cache_use_clamps is None:
-            self._cache_use_clamps = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_clamps[i] = self[i].use_clamp
-        return self._cache_use_clamps
-
-    @use_clamps.setter
-    def use_clamps(self, values): # Arrayf of bool
-        self._cache_use_clamps = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_clamp = self._cache_use_clamps[i]
-
-    @property
-    def use_color_ramps(self): # Array of bool
-        if self._cache_use_color_ramps is None:
-            self._cache_use_color_ramps = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_color_ramps[i] = self[i].use_color_ramp
-        return self._cache_use_color_ramps
-
-    @use_color_ramps.setter
-    def use_color_ramps(self, values): # Arrayf of bool
-        self._cache_use_color_ramps = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_color_ramp = self._cache_use_color_ramps[i]
-
-    @property
-    def use_fake_users(self): # Array of bool
-        if self._cache_use_fake_users is None:
-            self._cache_use_fake_users = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_fake_users[i] = self[i].use_fake_user
-        return self._cache_use_fake_users
-
-    @use_fake_users.setter
-    def use_fake_users(self, values): # Arrayf of bool
-        self._cache_use_fake_users = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_fake_user = self._cache_use_fake_users[i]
-
-    @property
-    def use_nodes_s(self): # Array of bool
-        if self._cache_use_nodes_s is None:
-            self._cache_use_nodes_s = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_nodes_s[i] = self[i].use_nodes
-        return self._cache_use_nodes_s
-
-    @use_nodes_s.setter
-    def use_nodes_s(self, values): # Arrayf of bool
-        self._cache_use_nodes_s = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_nodes = self._cache_use_nodes_s[i]
-
-    @property
-    def use_preview_alphas(self): # Array of bool
-        if self._cache_use_preview_alphas is None:
-            self._cache_use_preview_alphas = np.empty(len(self), np.bool)
-            for i in range(len(self)):
-                self._cache_use_preview_alphas[i] = self[i].use_preview_alpha
-        return self._cache_use_preview_alphas
-
-    @use_preview_alphas.setter
-    def use_preview_alphas(self, values): # Arrayf of bool
-        self._cache_use_preview_alphas = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        for i in range(len(self)):
-            self[i].use_preview_alpha = self._cache_use_preview_alphas[i]
+        self.texture.use_preview_alpha = value
 
 #================================================================================
 # KeyFrame class wrapper
@@ -4068,229 +3073,213 @@ class WTextures(ArrayOf):
 class WKeyFrame(Wrapper):
 
     @property
+    def key_frame(self): # The wrapped Blender key_frame
+        return self.root_wrapper.top_obj
+
+    @property
+    def bstruct(self): # The wrapped Blender key_frame
+        return self.root_wrapper.top_obj
+
+    @property
     def amplitude(self): # float
-        return self.obj.amplitude
+        return self.key_frame.amplitude
 
     @amplitude.setter
     def amplitude(self, value): # float
-        self.obj.amplitude = value
+        self.key_frame.amplitude = value
 
     @property
     def back(self): # float
-        return self.obj.back
+        return self.key_frame.back
 
     @back.setter
     def back(self, value): # float
-        self.obj.back = value
+        self.key_frame.back = value
 
     @property
     def co(self): # V2
-        return self.obj.co
+        return self.key_frame.co
 
     @property
     def x(self):
-        return self.obj.co[0]
+        return self.key_frame.co[0]
 
     @property
     def y(self):
-        return self.obj.co[1]
+        return self.key_frame.co[1]
 
     @co.setter
     def co(self, value): # V2
-        self.obj.co = to_array(value, (2,), "co")
+        self.key_frame.co = to_array(value, (2,), "co")
 
     @x.setter
     def x(self, value):
-        self.obj.co[0] = value
+        self.key_frame.co[0] = value
 
     @y.setter
     def y(self, value):
-        self.obj.co[1] = value
+        self.key_frame.co[1] = value
 
     @property
     def easing(self): # str
-        return self.obj.easing
+        return self.key_frame.easing
 
     @easing.setter
     def easing(self, value): # str
-        self.obj.easing = value
+        self.key_frame.easing = value
 
     @property
     def handle_left(self): # V2
-        return self.obj.handle_left
+        return self.key_frame.handle_left
 
     @property
     def lx(self):
-        return self.obj.handle_left[0]
+        return self.key_frame.handle_left[0]
 
     @property
     def ly(self):
-        return self.obj.handle_left[1]
+        return self.key_frame.handle_left[1]
 
     @handle_left.setter
     def handle_left(self, value): # V2
-        self.obj.handle_left = to_array(value, (2,), "handle_left")
+        self.key_frame.handle_left = to_array(value, (2,), "handle_left")
 
     @lx.setter
     def lx(self, value):
-        self.obj.handle_left[0] = value
+        self.key_frame.handle_left[0] = value
 
     @ly.setter
     def ly(self, value):
-        self.obj.handle_left[1] = value
+        self.key_frame.handle_left[1] = value
 
     @property
     def handle_left_type(self): # str
-        return self.obj.handle_left_type
+        return self.key_frame.handle_left_type
 
     @handle_left_type.setter
     def handle_left_type(self, value): # str
-        self.obj.handle_left_type = value
+        self.key_frame.handle_left_type = value
 
     @property
     def handle_right(self): # V2
-        return self.obj.handle_right
+        return self.key_frame.handle_right
 
     @property
     def rx(self):
-        return self.obj.handle_right[0]
+        return self.key_frame.handle_right[0]
 
     @property
     def ry(self):
-        return self.obj.handle_right[1]
+        return self.key_frame.handle_right[1]
 
     @handle_right.setter
     def handle_right(self, value): # V2
-        self.obj.handle_right = to_array(value, (2,), "handle_right")
+        self.key_frame.handle_right = to_array(value, (2,), "handle_right")
 
     @rx.setter
     def rx(self, value):
-        self.obj.handle_right[0] = value
+        self.key_frame.handle_right[0] = value
 
     @ry.setter
     def ry(self, value):
-        self.obj.handle_right[1] = value
+        self.key_frame.handle_right[1] = value
 
     @property
     def handle_right_type(self): # str
-        return self.obj.handle_right_type
+        return self.key_frame.handle_right_type
 
     @handle_right_type.setter
     def handle_right_type(self, value): # str
-        self.obj.handle_right_type = value
+        self.key_frame.handle_right_type = value
 
     @property
     def interpolation(self): # str
-        return self.obj.interpolation
+        return self.key_frame.interpolation
 
     @interpolation.setter
     def interpolation(self, value): # str
-        self.obj.interpolation = value
+        self.key_frame.interpolation = value
 
     @property
     def period(self): # float
-        return self.obj.period
+        return self.key_frame.period
 
     @period.setter
     def period(self, value): # float
-        self.obj.period = value
+        self.key_frame.period = value
 
     @property
     def select_control_point(self): # bool
-        return self.obj.select_control_point
+        return self.key_frame.select_control_point
 
     @select_control_point.setter
     def select_control_point(self, value): # bool
-        self.obj.select_control_point = value
+        self.key_frame.select_control_point = value
 
     @property
     def select_left_handle(self): # bool
-        return self.obj.select_left_handle
+        return self.key_frame.select_left_handle
 
     @select_left_handle.setter
     def select_left_handle(self, value): # bool
-        self.obj.select_left_handle = value
+        self.key_frame.select_left_handle = value
 
     @property
     def select_right_handle(self): # bool
-        return self.obj.select_right_handle
+        return self.key_frame.select_right_handle
 
     @select_right_handle.setter
     def select_right_handle(self, value): # bool
-        self.obj.select_right_handle = value
+        self.key_frame.select_right_handle = value
 
 #================================================================================
 # Array of WKeyFrames
 
-class WKeyFrames(CollWrapper):
-    def __init__(self, coll, wowner):
-        super().__init__(coll, wowner, WKeyFrame)
-        self._cache_amplitudes              = None
-        self._cache_backs                   = None
-        self._cache_cos                     = None
-        self._cache_easings                 = None
-        self._cache_handle_lefts            = None
-        self._cache_handle_left_types       = None
-        self._cache_handle_rights           = None
-        self._cache_handle_right_types      = None
-        self._cache_interpolations          = None
-        self._cache_periods                 = None
-        self._cache_select_control_points   = None
-        self._cache_select_left_handles     = None
-        self._cache_select_right_handles    = None
+class WKeyFrames(Wrapper):
 
-    def erase_cache(self):
-        super().erase_cache()
-        self._cache_amplitudes              = None
-        self._cache_backs                   = None
-        self._cache_cos                     = None
-        self._cache_easings                 = None
-        self._cache_handle_lefts            = None
-        self._cache_handle_left_types       = None
-        self._cache_handle_rights           = None
-        self._cache_handle_right_types      = None
-        self._cache_interpolations          = None
-        self._cache_periods                 = None
-        self._cache_select_control_points   = None
-        self._cache_select_left_handles     = None
-        self._cache_select_right_handles    = None
+    @property
+    def key_frames(self): # The wrapped Blender key_frames
+        return self.root_wrapper.top_objbpy.data.textures[self.name]
+
+    def __len__(self):
+        return len(self.root_wrapper.top_objbpy.data.textures[self.name])
+
+    def __getitem__(self, index):
+        return WKeyFrame(self.root_wrapper, index=index)
+
+    @property
+    def item_class(self):
+        return WKeyFrame
 
     @property
     def amplitudes(self): # Array of float
-        if self._cache_amplitudes is None:
-            self._cache_amplitudes = np.empty(len(self), np.float)
-            self.coll.foreach_get('amplitude', self._cache_amplitudes)
-        return self._cache_amplitudes
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('amplitude', array)
+        return array
 
     @amplitudes.setter
     def amplitudes(self, values): # Arrayf of float
-        self._cache_amplitudes = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('amplitude', self._cache_amplitudes)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('amplitude', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def backs(self): # Array of float
-        if self._cache_backs is None:
-            self._cache_backs = np.empty(len(self), np.float)
-            self.coll.foreach_get('back', self._cache_backs)
-        return self._cache_backs
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('back', array)
+        return array
 
     @backs.setter
     def backs(self, values): # Arrayf of float
-        self._cache_backs = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('back', self._cache_backs)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('back', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def cos(self): # Array of V2
-        if self._cache_cos is None:
-            self._cache_cos = np.empty(len(self)*2, np.float)
-            self.coll.foreach_get('co', self._cache_cos)
-            self._cache_cos = self._cache_cos.reshape(len(self), 2)
-        return self._cache_cos
+        array = np.empty(len(self)*2, np.float)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('co', array)
+        return array.reshape(len(self), 2)
 
     @cos.setter
     def cos(self, values): # Arrayf of V2
-        self._cache_cos = to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors')
-        self.coll.foreach_set('co', self._cache_cos.reshape(len(self) * 2))
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('co', to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors').reshape(len(self) * 2))
 
     # xyzw access to cos
 
@@ -4300,8 +3289,9 @@ class WKeyFrames(CollWrapper):
 
     @xs.setter
     def xs(self, values):
-        self.cos[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def ys(self): 
@@ -4309,35 +3299,34 @@ class WKeyFrames(CollWrapper):
 
     @ys.setter
     def ys(self, values):
-        self.cos[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.cos = self._cache_cos
+        cos = self.cos
+        cos[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.cos = cos
 
     @property
     def easings(self): # Array of str
-        if self._cache_easings is None:
-            self._cache_easings = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_easings[i] = self[i].easing
-        return self._cache_easings
+        array = np.empty(len(self), np.object)
+        coll = self.root_wrapper.top_objbpy.data.textures[self.name]
+        for i in range(len(self)):
+            array[i] = coll[i].easing
+        return array
 
     @easings.setter
     def easings(self, values): # Arrayf of str
-        self._cache_easings = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = self.root_wrapper.top_objbpy.data.textures[self.name]
         for i in range(len(self)):
-            self[i].easing = self._cache_easings[i]
+            coll[i].easing = array[i]
 
     @property
     def handle_lefts(self): # Array of V2
-        if self._cache_handle_lefts is None:
-            self._cache_handle_lefts = np.empty(len(self)*2, np.float)
-            self.coll.foreach_get('handle_left', self._cache_handle_lefts)
-            self._cache_handle_lefts = self._cache_handle_lefts.reshape(len(self), 2)
-        return self._cache_handle_lefts
+        array = np.empty(len(self)*2, np.float)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('handle_left', array)
+        return array.reshape(len(self), 2)
 
     @handle_lefts.setter
     def handle_lefts(self, values): # Arrayf of V2
-        self._cache_handle_lefts = to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors')
-        self.coll.foreach_set('handle_left', self._cache_handle_lefts.reshape(len(self) * 2))
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('handle_left', to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors').reshape(len(self) * 2))
 
     # xyzw access to handle_lefts
 
@@ -4347,8 +3336,9 @@ class WKeyFrames(CollWrapper):
 
     @lxs.setter
     def lxs(self, values):
-        self.handle_lefts[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_lefts = self._cache_handle_lefts
+        handle_lefts = self.handle_lefts
+        handle_lefts[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_lefts = handle_lefts
 
     @property
     def lys(self): 
@@ -4356,35 +3346,34 @@ class WKeyFrames(CollWrapper):
 
     @lys.setter
     def lys(self, values):
-        self.handle_lefts[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_lefts = self._cache_handle_lefts
+        handle_lefts = self.handle_lefts
+        handle_lefts[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_lefts = handle_lefts
 
     @property
     def handle_left_types(self): # Array of str
-        if self._cache_handle_left_types is None:
-            self._cache_handle_left_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_handle_left_types[i] = self[i].handle_left_type
-        return self._cache_handle_left_types
+        array = np.empty(len(self), np.object)
+        coll = self.root_wrapper.top_objbpy.data.textures[self.name]
+        for i in range(len(self)):
+            array[i] = coll[i].handle_left_type
+        return array
 
     @handle_left_types.setter
     def handle_left_types(self, values): # Arrayf of str
-        self._cache_handle_left_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = self.root_wrapper.top_objbpy.data.textures[self.name]
         for i in range(len(self)):
-            self[i].handle_left_type = self._cache_handle_left_types[i]
+            coll[i].handle_left_type = array[i]
 
     @property
     def handle_rights(self): # Array of V2
-        if self._cache_handle_rights is None:
-            self._cache_handle_rights = np.empty(len(self)*2, np.float)
-            self.coll.foreach_get('handle_right', self._cache_handle_rights)
-            self._cache_handle_rights = self._cache_handle_rights.reshape(len(self), 2)
-        return self._cache_handle_rights
+        array = np.empty(len(self)*2, np.float)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('handle_right', array)
+        return array.reshape(len(self), 2)
 
     @handle_rights.setter
     def handle_rights(self, values): # Arrayf of V2
-        self._cache_handle_rights = to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors')
-        self.coll.foreach_set('handle_right', self._cache_handle_rights.reshape(len(self) * 2))
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('handle_right', to_array(values, (len(self), 2), f'2-vector or array of {len(self)} 2-vectors').reshape(len(self) * 2))
 
     # xyzw access to handle_rights
 
@@ -4394,8 +3383,9 @@ class WKeyFrames(CollWrapper):
 
     @rxs.setter
     def rxs(self, values):
-        self.handle_rights[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_rights = self._cache_handle_rights
+        handle_rights = self.handle_rights
+        handle_rights[:, 0] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_rights = handle_rights
 
     @property
     def rys(self): 
@@ -4403,84 +3393,79 @@ class WKeyFrames(CollWrapper):
 
     @rys.setter
     def rys(self, values):
-        self.handle_rights[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
-        self.handle_rights = self._cache_handle_rights
+        handle_rights = self.handle_rights
+        handle_rights[:, 1] = to_array(values, (len(self), 1), f'value or array of {len(self)} values')
+        self.handle_rights = handle_rights
 
     @property
     def handle_right_types(self): # Array of str
-        if self._cache_handle_right_types is None:
-            self._cache_handle_right_types = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_handle_right_types[i] = self[i].handle_right_type
-        return self._cache_handle_right_types
+        array = np.empty(len(self), np.object)
+        coll = self.root_wrapper.top_objbpy.data.textures[self.name]
+        for i in range(len(self)):
+            array[i] = coll[i].handle_right_type
+        return array
 
     @handle_right_types.setter
     def handle_right_types(self, values): # Arrayf of str
-        self._cache_handle_right_types = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = self.root_wrapper.top_objbpy.data.textures[self.name]
         for i in range(len(self)):
-            self[i].handle_right_type = self._cache_handle_right_types[i]
+            coll[i].handle_right_type = array[i]
 
     @property
     def interpolations(self): # Array of str
-        if self._cache_interpolations is None:
-            self._cache_interpolations = np.empty(len(self), np.object)
-            for i in range(len(self)):
-                self._cache_interpolations[i] = self[i].interpolation
-        return self._cache_interpolations
+        array = np.empty(len(self), np.object)
+        coll = self.root_wrapper.top_objbpy.data.textures[self.name]
+        for i in range(len(self)):
+            array[i] = coll[i].interpolation
+        return array
 
     @interpolations.setter
     def interpolations(self, values): # Arrayf of str
-        self._cache_interpolations = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        array = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
+        coll = self.root_wrapper.top_objbpy.data.textures[self.name]
         for i in range(len(self)):
-            self[i].interpolation = self._cache_interpolations[i]
+            coll[i].interpolation = array[i]
 
     @property
     def periods(self): # Array of float
-        if self._cache_periods is None:
-            self._cache_periods = np.empty(len(self), np.float)
-            self.coll.foreach_get('period', self._cache_periods)
-        return self._cache_periods
+        array = np.empty(len(self), np.float)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('period', array)
+        return array
 
     @periods.setter
     def periods(self, values): # Arrayf of float
-        self._cache_periods = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('period', self._cache_periods)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('period', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def select_control_points(self): # Array of bool
-        if self._cache_select_control_points is None:
-            self._cache_select_control_points = np.empty(len(self), np.bool)
-            self.coll.foreach_get('select_control_point', self._cache_select_control_points)
-        return self._cache_select_control_points
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('select_control_point', array)
+        return array
 
     @select_control_points.setter
     def select_control_points(self, values): # Arrayf of bool
-        self._cache_select_control_points = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('select_control_point', self._cache_select_control_points)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('select_control_point', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def select_left_handles(self): # Array of bool
-        if self._cache_select_left_handles is None:
-            self._cache_select_left_handles = np.empty(len(self), np.bool)
-            self.coll.foreach_get('select_left_handle', self._cache_select_left_handles)
-        return self._cache_select_left_handles
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('select_left_handle', array)
+        return array
 
     @select_left_handles.setter
     def select_left_handles(self, values): # Arrayf of bool
-        self._cache_select_left_handles = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('select_left_handle', self._cache_select_left_handles)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('select_left_handle', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def select_right_handles(self): # Array of bool
-        if self._cache_select_right_handles is None:
-            self._cache_select_right_handles = np.empty(len(self), np.bool)
-            self.coll.foreach_get('select_right_handle', self._cache_select_right_handles)
-        return self._cache_select_right_handles
+        array = np.empty(len(self), np.bool)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_get('select_right_handle', array)
+        return array
 
     @select_right_handles.setter
     def select_right_handles(self, values): # Arrayf of bool
-        self._cache_select_right_handles = to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors')
-        self.coll.foreach_set('select_right_handle', self._cache_select_right_handles)
+        self.root_wrapper.top_objbpy.data.textures[self.name].foreach_set('select_right_handle', to_array(values, (len(self), 1), f'1-vector or array of {len(self)} 1-vectors'))
 
     @property
     def bpoints(self):

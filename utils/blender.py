@@ -256,6 +256,8 @@ def get_object(obj_or_name, mandatory=True, otype=None):
     
     if type(obj_or_name) is str:
         obj = bpy.data.objects.get(obj_or_name)
+    elif hasattr(obj_or_name, 'name'):
+        obj = bpy.data.objects.get(obj_or_name.name)
     else:
         obj = obj_or_name
         

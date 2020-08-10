@@ -19,7 +19,7 @@ from wrapanime.mesh.surface import Surface
 
 import wrapanime.wrappers.root as root
 
-from wrapanime.wrappers.generated_wrappers import WObject, WMesh
+#from wrapanime.wrappers.generated_wrappers import WMesh
 from wrapanime.wrappers import generated_wrappers as wgen
 
 from wrapanime.functions.bezier import BezierCurve
@@ -39,6 +39,50 @@ WObjects = wgen.WObjects
 def to_vector(value, dim=3):
     return root.to_array(value, [dim], f"(to_vector) single value or a {dim}-vector, not {value}")
 
+# =============================================================================================================================
+# Evaluated object
+    
+class WObject(wgen.WObject):
+    
+    def __init__(self, name, evaluated=False):
+        super().__init__(name)
+        self.evaluated = evaluated
+        if self.evaluated:
+            self._top_obj = bpy.data.objects[name].evaluated_get(bpy.context.evaluated_depsgraph_get())
+            
+    @property
+    def top_obj(self):
+        if self.evaluated:
+            return self._top_obj
+        else:
+            return bpy.data.objects[self.name]
+        
+    def evaluated(self):
+        return WObject(self.name, evaluated=True)
+    
+    @classmethod
+    def New(cls, name, type, **kwargs):
+        bpy.ops.object.add(type=type, **kwargs)
+        obj =  bpy.context.active_object
+        obj.name = name
+        return cls(obj.name)
+    
+    # ----------------------------------------------------------------------------------------------------
+    # Transform an array of vertices
+    
+    def world_transform(self, verts, rotation_only=False):
+        
+        M = self.top_obj.matrix_world
+        if rotation_only:
+            M = M.to_3x3().normalized().to_4x4()
+            
+        count = len(verts)
+    
+        v4d = np.ones((count, 4), np.float)
+        v4d[:, :-1] = verts
+    
+        return np.einsum('ij,aj->ai', M, v4d)[:, :-1]
+    
 
 # =============================================================================================================================
 # Empty object wrapper
@@ -46,60 +90,35 @@ def to_vector(value, dim=3):
 class WEmpty(WObject):
     def __init__(self, obj):
         obj = blender.get_object(obj, 'EMPTY')
-        super().__init__(obj)
+        super().__init__(obj.name)
         
     @classmethod
-    def New(cls, name=None):
-        return WObject.New(name=name, otype='EMPTY')
-    
-        
+    def New(cls, name, **kwargs):
+        return WObject.New(name, 'EMPTY', **kwargs)
 
 # =============================================================================================================================
 # Mesh object wrapper
 
 class WMeshObject(WObject):
-    def __init__(self, obj):
+    
+    def __init__(self, name):
+        obj = blender.get_object(name, 'MESH')
+        super().__init__(obj.name)
 
-        obj = blender.get_object(obj, 'MESH')
+        self.wmesh              = wgen.WMesh(self)
+        self.wvertices          = wgen.WMeshVertices(self)
+        self.wedges             = wgen.WEdges(self)
+        self.wloops             = wgen.WLoops(self)
+        self.wpolygons          = wgen.WPolygons(self)
 
-        super().__init__(obj)
-        self.wmesh = WMesh(self.obj.data, self)
-        self.wmesh.blender_object = self.obj
-
-        self._verts             = None
-        self._verts_normals     = None
-
-        self._faces_centers     = None
-        self._faces_normals     = None
-        self._faces             = None
-
-        self._edges             = None
-        
         self._surface           = None
         self.surface_sk         = None
 
-    def erase_cache(self):
-        super().erase_cache()
-
-        self._verts             = None
-        self._verts_normals     = None
-
-        self._faces_centers     = None
-        self._faces_normals     = None
-        self._faces             = None
-
-        self._edges             = None
-        
     # ---------------------------------------------------------------------------
     # New
     
     @classmethod
-    def New(cls, shape='CUBE', name=None, **kwargs):
-        
-        if name is not None:
-            obj = blender.get_object(name, mandatory=False, otype='MESH')
-            if obj is not None:
-                return cls(obj)
+    def New(cls, name, shape='CUBE', **kwargs):
         
         if shape == 'CIRCLE':
             bpy.ops.mesh.primitive_circle_add(**kwargs)
@@ -130,11 +149,9 @@ class WMeshObject(WObject):
                 )
 
         obj = bpy.context.active_object
-        if name is not None:
-            obj.name = name
+        obj.name = name
 
-        return cls(obj)
-        
+        return cls(obj.name)
 
     # ---------------------------------------------------------------------------
     # Mesh ease functions
@@ -143,72 +160,45 @@ class WMeshObject(WObject):
 
     @property
     def verts(self):
-        if self._verts is None:
-            mesh = self.eval_object.data
-            self._verts = cy_object.get_vertices(mesh, self.full_matrix)
-        return self._verts
-
-    @verts.setter
-    def verts(self, values):
-        nverts = len(self.wmesh.vertices)
-        shape = (nverts, 3)
-        vals = root.to_array(values, shape, f"a single vector or an array of {nverts} vectors")
-        cy_object.set_vertices(self.obj.data, vals, mask='XYZ')
-        self._verts = None
-
-    def set_verts(self, verts, mask='XYZ'):
-        nverts = len(self.wmesh.vertices)
-        shape = (nverts, 3)
-        vals = root.to_array(verts, shape, "a single vector or an array of {} vectors".format(nverts))
-        cy_object.set_vertices(self.obj.data, vals, mask=mask)
-        self._verts = None
-
-    # === Normals to vertices (read only)
+        vs = self.wvertices.vertices
+        if self.evaluated:
+            return self.world_transform(vs)
+        else:
+            return vs
 
     @property
     def verts_normals(self):
-        if self._verts_normals is None:
-            mesh = self.eval_object.data
-            self._verts_normals = cy_object.get_transformed_array(mesh.vertices, 'normal', self.rot_matrix)
-        return self._verts_normals
-
-    # === faces
-
+        vs = self.wvertices.normals
+        if self.evaluated:
+            return self.world_transform(vs, rotation_only=True)
+        else:
+            return vs
+        
     @property
     def faces_centers(self):
-        if self._faces_centers is None:
-            mesh = self.eval_object.data
-            self._faces_centers = cy_object.get_transformed_array(mesh.polygons, 'center', self.full_matrix)
-        return self._faces_centers
+        vs = self.polygons.centers
+        if self.evaluated:
+            return self.world_transform(vs)
+        else:
+            return vs
 
     @property
     def faces_normals(self):
-        if self._faces_normals is None:
-            mesh = self.eval_object.data
-            self._faces_normals = cy_object.get_transformed_array(mesh.polygons, 'normal', self.rot_matrix)
-        return self._faces_normals
+        vs = self.polygons.normals
+        if self.evaluated:
+            return self.world_transform(vs, rotation_only=True)
+        else:
+            return vs
 
     @property
     def faces(self):
-        if self._faces is None:
-            mesh = self.obj.data
-            polys = mesh.polygons
-            self._faces = np.empty(len(polys), np.object)
-            for ipoly, poly in enumerate(polys):
-                self._faces[ipoly] = [self.verts[iv] for iv in poly.vertices]
-        return self._faces
+        verts = self.verts
+        return [[verts[iv] for iv in poly.vertices] for poly in self.top_obj.data.polygons]
 
     @property
     def edges(self):
-        if self._edges is None:
-            mesh = self.obj.data
-            self._edges = [[self.verts[edge.vertices[0]], self.verts[edge.vertices[1]]] for edge in mesh.edges]
-        return self._edges
-    
-    
-    @property
-    def object_name(self):
-        return self.blender_object.name
+        verts = self.verts
+        return [[verts[edge.vertices[0]], verts[edge.vertices[1]]] for edge in self.top_obj.data.polygons]
         
     # ----------------------------------------------------------------------------------------------------
     # Shape keys
@@ -221,8 +211,8 @@ class WMeshObject(WObject):
         
         name = self.sk_name(name, step)
         
-        mesh = self.obj.data
-        obj  = self.obj
+        mesh = self.object.data
+        obj  = self.object
     
         if mesh.shape_keys is None:
             if create:
@@ -256,24 +246,24 @@ class WMeshObject(WObject):
     def on_sk(self, name, step=None):
     
         if not self.sk_exists(name, step):
-            raise WrapException(f"The shape key '{self.sk_name(name, step)}' doesn't exist in object '{self.obj.name}'!")
+            raise WrapException(f"The shape key '{self.sk_name(name, step)}' doesn't exist in object '{self.object.name}'!")
             
-        mesh = self.obj.data
+        mesh = self.object.data
     
         mesh.shape_keys.eval_time = self.get_sk(name, step).frame
         return mesh.shape_keys.eval_time
 
     def delete_sk(self, name=None, step=None):
         
-        if self.obj.data.shape_keys is None:
+        if self.object.data.shape_keys is None:
             return
         
         if name is None:
-            self.obj.shape_key_clear()
+            self.object.shape_key_clear()
         else:
             key = self.get_sk(name, step)
             if key is not None:
-                self.obj.shape_key_remove(key)
+                self.object.shape_key_remove(key)
                 
 
     # ----------------------------------------------------------------------------------------------------
@@ -281,7 +271,7 @@ class WMeshObject(WObject):
     
     @property
     def eval_time(self):
-        mesh = self.obj.data
+        mesh = self.object.data
         if mesh.shape_keys is None:
             return 0.
         else:
@@ -289,10 +279,10 @@ class WMeshObject(WObject):
     
     @eval_time.setter
     def eval_time(self, value):
-        mesh = self.obj.data
+        mesh = self.object.data
         if mesh.shape_keys is None:
             raise WrapException(
-                f"WMeshObject eval_time error: no shape keys are defined for the object {self.obj.name}"
+                f"WMeshObject eval_time error: no shape keys are defined for the object {self.object.name}"
                 )
         else:
             mesh.shape_keys.eval_time = value
@@ -329,7 +319,7 @@ class WMeshObject(WObject):
             return
         
         # The mesh
-        mesh = self.obj.data
+        mesh = self.object.data
         
         # Create the new geometry
         mesh.clear_geometry()
@@ -354,14 +344,14 @@ class WMeshObject(WObject):
         
         if self._surface is None:
             raise WrapException(
-                f"WMesh compute error: no surface attribute is set to mesh object '{self.obj.name}'"
+                f"WMesh compute error: no surface attribute is set to mesh object '{self.object.name}'"
                 )
             
         # Compute the vertices
         verts = self._surface.compute(t)
         
         # The mesh
-        mesh = self.obj.data
+        mesh = self.object.data
         
         if len(verts) != len(mesh.vertices):
             self.surface_init()
@@ -380,54 +370,30 @@ class WMeshObject(WObject):
         
         # Initial key to ensure everything is correctly initialized
         self.compute(t0)
-        count = len(self.obj.data.vertices)*3
+        count = len(self.object.data.vertices)*3
         
         # Loop on shape keys
         for step in range(steps+1):
             sk = self.get_sk(name='Surface', step=step)
             sk.data.foreach_set('co', self._surface.compute(t0 + dt*step).reshape(count))    
 
-
-# =============================================================================================================================
-# Curve
-        
-class WCurve(wgen.WCurve):
-    @property
-    def t0(self):
-        return self.bevel_factor_start
-    @t0.setter
-    def t0(self, value):
-        self.bevel_factor_start = value
-        
-    @property
-    def t1(self):
-        return self.bevel_factor_end
-    @t1.setter
-    def t1(self, value):
-        self.bevel_factor_end = value
-
-
 # =============================================================================================================================
 # Curve object wrapper
 
 class WCurveObject(WObject):
-    def __init__(self, obj):
-        obj = blender.get_object(obj, 'CURVE')
-        super().__init__(obj)
+    
+    def __init__(self, name):
+        obj = blender.get_object(name, 'CURVE')
+        super().__init__(obj.name)
         
-        self.wcurve   = WCurve(self.obj.data, self)
-        self.wsplines = self.wcurve.wsplines
+        self.wcurve   = wgen.WCurve(self)
+        self.wsplines = wgen.WSplines(self)
         
     # ---------------------------------------------------------------------------
     # New Curve object
     
     @classmethod
-    def New(cls, shape='BEZIER', name=None, **kwargs):
-        
-        if name is not None:
-            obj = blender.get_object(name, mandatory=False, otype='CURVE')
-            if obj is not None:
-                return cls(obj)
+    def New(cls, name, shape='BEZIER', **kwargs):
         
         if shape == 'CIRCLE':
             bpy.ops.curve.primitive_bezier_circle_add(**kwargs)
@@ -448,10 +414,9 @@ class WCurveObject(WObject):
                 )
 
         obj = bpy.context.active_object
-        if name is not None:
-            obj.name = name
+        obj.name = name
             
-        return cls(obj)
+        return cls(obj.name)
     
         
     # ---------------------------------------------------------------------------
@@ -468,7 +433,7 @@ class WCurveObject(WObject):
     @property
     def bezier_curve(self):
         bc = self.wcurve.bezier_curve
-        bc.length = self.obj.path_duration
+        bc.length = self.object.path_duration
         return bc
 
     def set_function(self, f, t0, t1, count=100):
@@ -478,21 +443,26 @@ class WCurveObject(WObject):
 # =============================================================================================================================
 # Wrap a Blender object
 
-def wrap(obj, create=None, collection=None, **kwargs):
+def wrap(obj_or_name, create=None, collection=None, **kwargs):
     
-    obj = blender.getcreate_object(obj, create, collection, **kwargs)
+    obj = blender.getcreate_object(obj_or_name, create, collection, **kwargs)
 
     if obj.type == 'MESH':
-        return WMeshObject(obj)
+        return WMeshObject(obj.name)
+    
     if obj.type == 'CURVE':
-        return WCurveObject(obj)
+        return WCurveObject(obj.name)
+    
     elif obj.type == 'EMPTY':
-        return WEmpty(obj)
+        return WEmpty(obj.name)
+    
     else:
-        return WObject(obj)
+        return WObject(obj.name)
 
 # =============================================================================================================================
 # Keyframe curves
+
+"""
         
 class WKeyFrames(wgen.WKeyFrames):
     
@@ -579,4 +549,4 @@ class KFAnimation():
         
         return WKeyFrames(curve.keyframe_points, wowner=None)
             
-
+"""

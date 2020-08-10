@@ -38,7 +38,7 @@ class Duplicator(WObjects):
         collection = blend.wrap_collection(coll_name)
         
         # The collection of WObjects is collection.objects
-        super().__init__(collection.objects, self)
+        super().__init__(coll_name)
         
         self.collection    = collection
         

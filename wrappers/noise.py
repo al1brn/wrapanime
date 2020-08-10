@@ -25,7 +25,7 @@ class Noise(WTexture):
         else:
             tx = texture
             
-        super().__init__(tx, None)
+        super().__init__(tx.name)
         self._min = 0.
         self._amp = 1.
         
@@ -47,14 +47,14 @@ class Noise(WTexture):
         
     @property
     def grayscale(self):
-        return self.obj.cloud_type == 'GRAYSCALE'
+        return self.texture.cloud_type == 'GRAYSCALE'
     
     @grayscale.setter
     def grayscale(self, value):
-        self.obj.cloud_type = 'GRAYSCALE'if value else 'COLOR'
+        self.texture.cloud_type = 'GRAYSCALE'if value else 'COLOR'
         
     def __call__(self, v):
-        tx = self.obj
+        tx = self.texture
         
         vs = np.array(v, np.float)
         if len(vs.shape) == 0:

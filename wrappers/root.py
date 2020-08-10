@@ -115,7 +115,7 @@ def vectorize(values, shape, caller="unknown"):
 #
 # Properties of managed items are accessibles through cached vectorized properties
 
-class ArrayOf():
+class ArrayOf_DEPRECATED():
 
     def __init__(self, wowner, cls):
         self.wowner = wowner
@@ -188,45 +188,48 @@ class ArrayOf():
 
 class Wrapper():
 
-    def __init__(self, obj, wowner=None):
-        self.obj    = obj
-        self.wowner = wowner
-        self.wrapper_init()
-        
-    def wrapper_init(self):
-        pass
+    def __init__(self, root_wrapper=None, wowner=None, index=None):
+
+        """
+        if type(name) is str:
+            self.name = name
+        else:
+            try:
+                self.name = name.name
+            except:
+                raise WrapException(
+                    "Wrapper initialization error: initialization needs either or name or an object with an name attribute.",
+                    f"{name} is not valid for initialization"
+                    )
+        """
+                
+        if root_wrapper is not None:
+            self.root_wrapper = root_wrapper
+        if wowner is not None:
+            self.wowner = wowner
+        if index is not None:
+            self.windex = index
+            
+    @property
+    def top_obj(self):
+        return self.root_wrapper.top_obj
+            
+            
+    # Must implement two properties
+    # top_obj
+    # obj for objects wrappers and coll for coll wrappers
+                
+    #@property
+    #def top_obj(self):
+    #    pass
+    
+    #@property
+    #def obj(self):
+    #    pass
         
     def __repr__(self):
-        if hasattr(self.obj, 'name'):
-            name = self.obj.name
-        else:
-            name = f"{self.obj}"
-            
-        return f"Wrapper[{name} type:{type(self.obj).__name__}]"
-    
-    @classmethod
-    def New(cls, name=None, otype='EMPTY', **kwargs):
-        
-        if name is not None:
-            obj = blender.get_object(name, mandatory=False, otype=otype)
-            if obj is not None:
-                return cls(obj)
-            
-        bpy.ops.object.add(type=otype, **kwargs)
-        
-        obj = bpy.context.active_object
-        if name is not None:
-            obj.name = name
-        
-        return cls(obj)
-        
-
-    @classmethod
-    def Wrap(cls, obj, wowner=None):
-        if issubclass(type(obj), Wrapper):
-            return obj
-        else:
-            return cls(obj, wowner)
+        name = type(self).__name__.split(".")[-1]
+        return f"[{name}({type(self.struct)}]"
         
     # Cached properties are created dynamically
     # The names of the caches which can be erased are in class list
@@ -272,7 +275,7 @@ class Wrapper():
             except:
                 pass
             
-        obj = self.obj
+        obj = self.struct
         for i in range(len(parts)-1):
             try:
                 obj = getattr(obj, parts[i])
@@ -288,67 +291,44 @@ class Wrapper():
         
     @property
     def is_animated(self):
-        return blender.is_animated(self.obj)
+        return blender.is_animated(self.struct)
         
     @property
     def animation(self):
-        return blender.animation_data(self.obj)
+        return blender.animation_data(self.struct)
         
     @property
     def action(self):
-        return blender.animation_action(self.obj)
+        return blender.animation_action(self.struct)
     
     @property
     def fcurves(self):
-        return blender.get_fcurves(self.obj)
+        return blender.get_fcurves(self.struct)
     
     def get_fcurve(self, name):
-        return blender.get_fcurve(self.obj, name)
+        return blender.get_fcurve(self.struct, name)
     
     def new_curve(self, name):
-        return blender.new_curve(self.obj, name)
+        return blender.new_curve(self.struct, name)
     
     def set_fcurve(self, name, fcurve):
-        blender.set_fcurve(self.obj, name, fcurve)
+        blender.set_fcurve(self.struct, name, fcurve)
     
     # ---------------------------------------------------------------------------
     # Delete key frames
     
     def kf_delete(self, name, frame0=None, frame1=None):
-        blender.kf_delete(self.obj, name, frame0, frame1)
+        blender.kf_delete(self.struct, name, frame0, frame1)
     
     # ---------------------------------------------------------------------------
     # Set a key frame at a given frame
     
     # Shortcut for keyframes
     def kf_insert(self, name, frame, value):
-        blender.kf_insert(self.obj, name, frame, value)
+        blender.kf_insert(self.struct, name, frame, value)
         
     def kf_interval(self, name, frame0, frame1, value0, value1, interpolation='LINEAR'):
-        blender.kf_interval(self.obj, name, frame0, frame1, value0, value1, interpolation)
-    
-    
-# *****************************************************************************************************************************
-# Collection wrapper
-# Eg: vertices collection in a mesh
-
-class CollWrapper():
-
-    def __init__(self, coll, wowner, cls):
-        self.coll   = coll
-        self.wowner = wowner
-        self.cls    = cls
-        
-    def __len__(self):
-        return len(self.coll)
-    
-    def __getitem__(self, index):
-        return self.cls(self.coll[index], self)
-
-    # loop
-    def for_each(self, f, **kwargs):
-        for w in self:
-            f(w, **kwargs)
+        blender.kf_interval(self.struct, name, frame0, frame1, value0, value1, interpolation)
             
 # *****************************************************************************************************************************
 # Enrich WObject with usefull methods
@@ -356,47 +336,17 @@ class CollWrapper():
             
 class WObjectRoot(Wrapper):
 
-    def __init__(self, obj, wowner=None):
-        super().__init__(blender.get_object(obj), wowner)
-        self._eval_object = None
-        self._averts      = None
-
-    @classmethod
-    def get_object_OLD(cls, obj, otype=None):
-        if type(obj) is str:
-            o = bpy.data.objects.get(obj)
-            if o is None:
-                raise WrapException(f"Impossible de initialize wrapper: Blender object '{obj}' not found")
-            obj = o
-        if otype is not None:
-            if obj.type !=  otype:
-                raise WrapException(
-                        f"{cls.__name__} wrapper expect Blender object of type '{otype}'.",
-                        f"Blender object '{obj.name}' is type'{obj.type}'."
-                    )
-        return obj
-
-    def erase_cache(self):
-        super().erase_cache()
-        self._eval_object = None
-        self._averts      = None
-
     @property
     def eval_object(self):
-        if self._eval_object is None:
-            depsgraph = bpy.context.evaluated_depsgraph_get()
-            evobj = self.obj.evaluated_get(depsgraph)
-            self._eval_object = evobj
-
-        return self._eval_object
+        return self.object.evaluated_get(bpy.context.evaluated_depsgraph_get())
 
     @property
     def full_matrix(self):
-        return self.obj.matrix_world
+        return self.object.matrix_world
 
     @property
     def rot_matrix(self):
-        return self.obj.matrix_world.to_3x3().normalized().to_4x4()
+        return self.object.matrix_world.to_3x3().normalized().to_4x4()
     
     # Properties which will be vectorized
 
@@ -416,12 +366,12 @@ class WObjectRoot(Wrapper):
 
     @property
     def hide(self):
-        return self.obj.hide_render
+        return self.object.hide_render
 
     @hide.setter
     def hide(self, value):
-        self.obj.hide_render   = value
-        self.obj.hide_viewport = value
+        self.object.hide_render   = value
+        self.object.hide_viewport = value
 
     # transformation
 
@@ -453,18 +403,18 @@ class WSplineRoot(Wrapper):
     
     @property
     def bezier_count(self):
-        return len(self.obj.bezier_points)
+        return len(self.spline.bezier_points)
 
     @property
     def points_count(self):
-        return len(self.obj.points)
+        return len(self.spline.points)
         
     # ---------------------------------------------------------------------------
     # Bezier points
     
     @property
     def bpoints(self):
-        bp = self.obj.bezier_points
+        bp = self.spline.bezier_points
         count  = len(bp)
         
         bpoints = np.full((count, 9), 99., np.float)
@@ -485,7 +435,7 @@ class WSplineRoot(Wrapper):
         bpoints = bpoints.reshape(np.array(bpoints).size//9, 9)
         count   = len(bpoints)
         
-        bp = self.obj.bezier_points
+        bp = self.spline.bezier_points
         
         if len(bp) > count:
             raise WrapException(
@@ -513,14 +463,14 @@ class WSplineRoot(Wrapper):
         count = points.size // 4
         points = points.reshape(points.size)
         
-        if len(self.obj.points) > count:
+        if len(self.spline.points) > count:
             raise WrapException(
                 "WSpline set points error: the number of control points don't match",
-                f"WSpline required points: {len(self.obj.points)}",
+                f"WSpline required points: {len(self.spline.points)}",
                 f"Number of given points:  {count}"
                 )
         
-        self.obj.points.add(count - len(self.obj.points))
+        self.spline.points.add(count - len(self.spline.points))
         self.wpoints.cos = points
         
     # ---------------------------------------------------------------------------
@@ -557,13 +507,15 @@ class WSplineRoot(Wrapper):
 # =============================================================================================================================
 # Splines
         
-class WSplinesRoot(CollWrapper):
+class WSplinesRoot(Wrapper):
     
     def clear(self):
-        self.coll.clear()
+        self.splines.clear()
         
     def new(self, type='BEZIER'):
-        return self.cls(self.coll.new(type), self)
+        index = len(self.splines)
+        self.splines.new(type)
+        return self.item_class(self.root_wrapper, index=index)
     
     def get_bpoints(self, index):
         return self[index].bpoints

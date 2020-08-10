@@ -4,7 +4,7 @@
 Special meshes
 Created on Mon Jun  1 15:52:31 2020
 
-@author: Alain Berard
+@author: Alain Bernard
 
 This file is part of wrapanime (Animation helper add-on for Blender).
 Copyright (C) 2020 Alain Bernard
