@@ -391,31 +391,23 @@ class WrapperGenerator():
 
     def __init__(self):
         
-        self.is_root            = False
-        
         self.gen_wrapper        = True
-        self.init_mode          = 'ITEM'      # init with (self, name, wowner, index)
+        self.init_args          = []
+        self.indexed            = False
         self.class_name         = None
         self.root_class         = "Wrapper"
-        self.top_obj            = "bpy.data.objects[self.name]"
         self.obj                = None       # Path to the wrapped property
         self.bname              = None       # Blender name to use to name the property
         
         self.gen_coll           = True
-        self.coll_init_mode     = 'PROPERTY' # Init with (self, name)
         self.coll_class_name    = None
         self.coll_root_class    = "Wrapper"
-        self.coll_top_obj       = "For root wrapper only: bpy.data.objects for instance"
         self.coll_obj           = None
         self.coll_bname         = None       # Blender name to use to name the property
         
         self.bpoints            = None  # Do not generate bpoints properties
         
         self.init()
-            
-    # Initializer specific to the class
-    def init(self):
-        return
         
     # Iterator on PropWrapper to be overriden in sub classes
     def props(self):
@@ -431,31 +423,51 @@ class WrapperGenerator():
     def collprops_code(self):
         return 
     
-    # Two ways to initialize an wrapped object of collection
-    # - ITEM     : as item of a collection
-    # - PROPERTY : as a property of a named structure
+    # ---------------------------------------------------------------------------
+    # __init__ default generation if this enumerator is empty
     
-    def init_params(self, mode):
-        if mode == 'SUB_ITEM':
-            return ", root_wrapper, wowner, index"
-        if mode == 'ITEM':
-            return ", root_wrapper, index"
-        elif mode == 'PROPERTY':
-            return ", root_wrapper"
-        else:
-            raise Exception(f"__init__ param mode invalid: {mode}")
-            
-    def super_call(self, mode):
-        if mode == 'SUB_ITEM':
-            return "root_wrapper, wowner=wowner, index=index"
-        if mode == 'ITEM':
-            return "root_wrapper, index=index"
-        elif mode == 'PROPERTY':
-            return "root_wrapper"
+    def init_method(self):
+        return
+        
+    # --- __init__ arguments
+
+    def init_params(self, item=True):
+        s = ""
+        for arg in self.init_args:
+            s += ", " + arg
+        if item and self.indexed:
+            s += ", windex"
+        return s
+    
+    # ---------------------------------------------------------------------------
+    # __init__ for coll default generation if this enumerator is empty
+
+    def coll_init_method(self):
+        return
+    
+    # ---------------------------------------------------------------------------
+    # __getitem__ default generation if this enumerator is empty
+    
+    def getitem_method(self):
+        return
+
+    # --- Collection only: how to instance in item WItem(???)
+    
+    @property
+    def coll_item_init(self):
+        s   = ""
+        sep = ""
+        for arg in self.init_args:
+            s += f"{sep}self.{arg}"
+            sep = ", "
+        return s + sep + "index"
         
     # class init source code
     
     def init_code(self):
+        pass
+    
+    def coll_init_code(self):
         pass
         
     # Does a enumerator yield lines
@@ -467,7 +479,8 @@ class WrapperGenerator():
                 return True
         except:
             return False
-    
+        
+    # ====================================================================================================
     # Source code for the Wrapper Class
     
     def wrapper_code(self):
@@ -481,50 +494,34 @@ class WrapperGenerator():
         # ---------------------------------------------------------------------------
         # Init
         
-        if self.is_root:
-            yield tab + f"def __init__(self, name):"
-            yield tab2 + f"super().__init__(self)"
-            yield tab2 + f"self.name = name"
-            
-            if self.is_not_empty(self.init_code()):
-                for line in self.init_code():
-                    yield line
-            yield ""
+        if self.is_not_empty(self.init_method()):
+            for line in self.init_method():
+                yield line
         else:
+            yield tab + f"def __init__(self{self.init_params(True)}):"
+            for arg in self.init_args:
+                yield tab2 + f"self.{arg:13} = {arg}"
+            if self.indexed:
+                yield tab2 + f"self.{'windex':13} = windex"
             if self.is_not_empty(self.init_code()):
-                yield tab + f"def __init__(self{self.init_params(self.init_mode)}):"
-                yield tab2 + f"super().__init__({self.super_call(self.init_mode)})"
                 for line in self.init_code():
                     yield line
-                yield ""
+        yield ""
 
         # ---------------------------------------------------------------------------
-        # Top_obj and obj
+        # Blender object access
         
-        if self.is_root:
-            yield tab + "@property"
-            yield tab + "def top_obj(self):"
-            yield tab2 + f"return {self.top_obj}"
-            yield ""
-
         yield tab + "@property"
         yield tab + f"def {self.bname}(self): # The wrapped Blender {self.bname}"
-        if self.is_root:
-            yield tab2 + f"return {self.top_obj}"
-        else:
-            yield tab2 + f"return self.root_wrapper.top_obj{self.obj}"
+        yield tab2 + f"return {self.obj}"
         yield ""
         
         # With bstruct generic name
         
         yield tab + "@property"
         yield tab + f"def bstruct(self): # The wrapped Blender {self.bname}"
-        if self.is_root:
-            yield tab2 + f"return {self.top_obj}"
-        else:
-            yield tab2 + f"return self.root_wrapper.top_obj{self.obj}"
+        yield tab2 + f"return {self.obj}"
         yield ""
-        
             
         # ---------------------------------------------------------------------------
         # Properties
@@ -535,6 +532,7 @@ class WrapperGenerator():
                 
         return
     
+    # ====================================================================================================
     # Source code for the Array of class
     
     def arrayof_code(self):
@@ -552,68 +550,47 @@ class WrapperGenerator():
         yield ""
         
         yield f"class W{cname}({super_name}):"
-        
-        # === The wrapped collection path
-        
-        if self.is_root:
-            wrapped_coll = f"{self.coll_top_obj}{self.coll_obj}"
-        else:
-            wrapped_coll = f"self.root_wrapper.top_obj{self.coll_obj}"
+        yield ""
         
         # === Init
         
-        go = True
-
-        if self.is_root:
-            yield tab + f"def __init__(self, name):"
-            yield tab2 + f"super().__init__(self)"
-            yield tab2 + "self.name = name"
-            go = False
-        
-        for prop in self.props():
-            for line in prop.arrayof_init_code():
-                if go:
-                    yield tab + f"def __init__(self{self.init_params(self.coll_init_mode)}):"
-                    yield tab2 + f"super().__init__({self.super_call(self.coll_init_mode)})" #, cls=W{self.class_name})"
-                    go = False
-
+        if self.is_not_empty(self.coll_init_method()):
+            for line in self.coll_init_method():
                 yield line
+        else:
+            yield tab + f"def __init__(self{self.init_params(False)}):"
+            for arg in self.init_args:
+                yield tab2 + f"self.{arg:13} = {arg}"
+            if self.is_not_empty(self.coll_init_code()):
+                for line in self.coll_init_code():
+                    yield line
+        yield tab2 + f"self.item_class = W{self.class_name}"
         yield ""
-        
-        # === Top obj
-        
-        if self.is_root:
-            yield tab + "@property"
-            yield tab + f"def top_obj(self):"
-            yield tab2 + f"return {self.coll_top_obj}"
-            yield ""
         
         # === Collection
         
         yield tab + "@property"
         yield tab + f"def {self.coll_bname}(self): # The wrapped Blender {self.coll_bname}"
-        yield tab2 + f"return {wrapped_coll}"
+        yield tab2 + f"return {self.coll_obj}"
+        yield ""
+        
+        yield tab + "@property"
+        yield tab + f"def bcoll(self): # The wrapped Blender {self.coll_bname}"
+        yield tab2 + f"return {self.coll_obj}"
         yield ""
         
         # === Array interface
         
         yield tab + "def __len__(self):"
-        yield tab2 + f"return len({wrapped_coll})"
+        yield tab2 + f"return len({self.coll_obj})"
         yield ""
         
-        yield tab + "def __getitem__(self, index):"
-        if self.is_root:
-            yield tab2 + f"return W{self.class_name}({wrapped_coll}[index].name)"
+        if self.is_not_empty(self.getitem_method()):
+            for line in self.getitem_method():
+                yield line
         else:
-            if self.init_mode == 'SUB_ITEM':
-                yield tab2 + f"return W{self.class_name}(self.root_wrapper, wowner=self, index=index)"
-            else:
-                yield tab2 + f"return W{self.class_name}(self.root_wrapper, index=index)"
-        yield ""
-        
-        yield tab + "@property"
-        yield tab + "def item_class(self):"
-        yield tab2 + f"return W{self.class_name}"
+            yield tab + "def __getitem__(self, index):"
+            yield tab2 + f"return W{self.class_name}({self.coll_item_init})"
         yield ""
         
         # === Erase cache
@@ -632,7 +609,7 @@ class WrapperGenerator():
         # === Vectorization wrapping
         
         for prop in self.props():
-            for line in prop.arrayof_code(wrapped_coll):
+            for line in prop.arrayof_code(self.coll_obj):
                 yield line
                 
         # === Methods
@@ -675,14 +652,14 @@ class MeshVertexGenerator(WrapperGenerator):
     def init(self):
         self.class_name         = "MeshVertex"
         
-        self.init_mode          = 'ITEM'
-        self.obj                = ".data.vertices[self.windex]"
+        self.init_args          = ["obj_name"]
+        self.indexed            = True
+        self.obj                = "bpy.data.objects[self.obj_name].data.vertices[self.windex]"
         self.bname              = "vertex"
         
         
         self.gen_coll           = True
-        self.coll_init_mode     = 'PROPERTY'
-        self.coll_obj           = ".data.vertices"
+        self.coll_obj           = "bpy.data.objects[self.obj_name].data.vertices"
         self.coll_bname         = "vertices"
         
         
@@ -695,6 +672,7 @@ class MeshVertexGenerator(WrapperGenerator):
         yield PropWrapper(name='normal',        vtype='V3',    prop=None, readonly=True,  shortcut='n',  foreach=True)
         yield PropWrapper(name='undeformed_co', vtype='V3',    prop=None, readonly=True,  shortcut=None, foreach=True)
 
+
 # =============================================================================================================================
 # Edge
     
@@ -703,14 +681,14 @@ class EdgeGenerator(WrapperGenerator):
     def init(self):
         self.class_name         = "Edge"
         
-        self.init_mode          = 'ITEM'
-        self.obj                = ".data.edges[self.windex]"
+        self.init_args          = ["obj_name"]
+        self.indexed            = True
+        self.obj                = "bpy.data.objects[self.obj_name].data.edges[self.windex]"
         self.bname              = "edge"
         
         
         self.gen_coll           = True
-        self.coll_init_mode     = 'PROPERTY'
-        self.coll_obj           = ".data.edges"
+        self.coll_obj           = "bpy.data.objects[self.obj_name].data.edges"
         self.coll_bname         = "edges"
     
     def props(self):
@@ -732,14 +710,14 @@ class LoopGenerator(WrapperGenerator):
     def init(self):
         self.class_name         = "Loop"
         
-        self.init_mode          = 'ITEM'
-        self.obj                = ".data.loops[self.windex]"
+        self.init_args          = ["obj_name"]
+        self.indexed            = True
+        self.obj                = "bpy.data.objects[self.obj_name].data.loops[self.windex]"
         self.bname              = "loop"
         
         
         self.gen_coll           = True
-        self.coll_init_mode     = 'PROPERTY'
-        self.coll_obj           = ".data.loops"
+        self.coll_obj           = "bpy.data.objects[self.obj_name].data.loops"
         self.coll_bname         = "loops"
         
     
@@ -759,14 +737,14 @@ class PolygonGenerator(WrapperGenerator):
     def init(self):
         self.class_name         = "Polygon"
         
-        self.init_mode          = 'ITEM'
-        self.obj                = ".data.polygons[self.windex]"
+        self.init_args          = ["obj_name"]
+        self.indexed            = True
+        self.obj                = "bpy.data.objects[self.obj_name].data.polygons[self.windex]"
         self.bname              = "polygons"
         
         
         self.gen_coll           = True
-        self.coll_init_mode     = 'PROPERTY'
-        self.coll_obj           = ".data.polygons"
+        self.coll_obj           = "bpy.data.objects[self.obj_name].data.polygons"
         self.coll_bname         = "polygons"
         
         
@@ -789,19 +767,19 @@ class MeshGenerator(WrapperGenerator):
 
     def init(self):
         
-        self.init_mode          = 'PROPERTY'
+        self.init_args          = ["obj_name"]
         self.class_name         = "Mesh"
         self.root_class         = "WMeshRoot"
-        self.obj                = ".data"
+        self.obj                = "bpy.data.objects[self.obj_name].data"
         self.bname              = "mesh"
         
         self.gen_coll           = False
         
     def init_code(self):
-        yield tab2 + "self.wvertices = WMeshVertices(self.root_wrapper)"
-        yield tab2 + "self.wedges    = WEdges(self.root_wrapper)"
-        yield tab2 + "self.wloops    = WLoops(self.root_wrapper)"
-        yield tab2 + "self.wpolygons = WPolygons(self.root_wrapper)"
+        yield tab2 + "self.wvertices = WMeshVertices(self.obj_name)"
+        yield tab2 + "self.wedges    = WEdges(self.obj_name)"
+        yield tab2 + "self.wloops    = WLoops(self.obj_name)"
+        yield tab2 + "self.wpolygons = WPolygons(self.obj_name)"
         
     def props(self):
         yield PropWrapper(name='auto_smooth_angle', vtype='float', prop=None, readonly=False, shortcut=None, foreach=True)
@@ -820,16 +798,15 @@ class BezierSplinePointGenerator(WrapperGenerator):
 
     def init(self):
         
-        self.init_mode          = 'SUB_ITEM'
+        self.init_args          = ["obj_name", "owner_index"]
+        self.indexed            = True
         self.class_name         = "BezierSplinePoint"
-        self.obj                = ".data.splines[self.wowner.windex].bezier_points[self.windex]"
+        self.obj                = "bpy.data.objects[self.obj_name].data.splines[self.owner_index].bezier_points[self.windex]"
         self.bname              = "bezier_point"
         
         self.gen_coll           = True
-        self.coll_init_mode     = 'ITEM'
-        self.coll_obj           = ".data.splines[self.wowner.windex].bezier_points"
+        self.coll_obj           = "bpy.data.objects[self.obj_name].data.splines[self.wowner_index].bezier_points"
         self.coll_bname         = "bezier_points"
-        
         
         self.bpoints            = 3
         
@@ -852,15 +829,14 @@ class SplinePointGenerator(WrapperGenerator):
     
     def init(self):
         
-        self.init_mode          = 'SUB_ITEM'
+        self.init_args          = ["obj_name", "owner_index"]
+        self.indexed            = True
         self.class_name         = "SplinePoint"
-        self.obj                = ".data.splines[self.wowner.windex].points[self.windex]"
+        self.obj                = "bpy.data.objects[self.obj_name].data.splines[self.owner_index].points[self.windex]"
         self.bname              = "point"
         
-        
         self.gen_coll           = True
-        self.coll_init_mode     = 'ITEM'
-        self.coll_obj           = ".data.splines[self.wowner.windex].points"
+        self.coll_obj           = "bpy.data.objects[self.obj_name].data.splines[self.owner_index].points"
         self.coll_bname         = "points"
         
     def props(self):
@@ -878,23 +854,23 @@ class SplineGenerator(WrapperGenerator):
         
     def init(self):
         
-        self.init_mode          = 'ITEM'
+        self.init_args          = ["obj_name"]
+        self.indexed            = True
         self.class_name         = "Spline"
         self.root_class         = "WSplineRoot"
-        self.obj                = ".data.splines[self.windex]"
+        self.obj                = "bpy.data.objects[self.obj_name].data.splines[self.windex]"
         self.bname              = "spline"
         
         
         self.gen_coll           = True
         self.coll_root_class    = "WSplinesRoot"
-        self.coll_init_mode     = 'PROPERTY'
-        self.coll_obj           = ".data.splines"
+        self.coll_obj           = "bpy.data.objects[self.obj_name].data.splines"
         self.coll_bname         = "splines"
         
         
     def init_code(self):
-        yield tab2 + "self.wbezier_points = WBezierSplinePoints(self.root_wrapper, self, index)"
-        yield tab2 + "self.wpoints        = WSplinePoints(self.root_wrapper, self, index)"
+        yield tab2 + "self.wbezier_points = WBezierSplinePoints(self.obj_name, self.windex)"
+        yield tab2 + "self.wpoints        = WSplinePoints(self.obj_name, self.windex)"
         
     def props(self):
         yield PropWrapper(name='character_index',      vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
@@ -923,15 +899,15 @@ class CurveGenerator(WrapperGenerator):
         
     def init(self):
         
-        self.init_mode          = 'PROPERTY'
+        self.init_args          = ["obj_name"]
         self.class_name         = "Curve"
-        self.obj                = ".data"
+        self.obj                = "bpy.data.objects[self.obj_name].data"
         self.bname              = "curve"
         
         self.gen_coll           = False
         
     def init_code(self):
-        yield tab2 + "self.wsplines = WSplines(self.root_wrapper)"
+        yield tab2 + "self.wsplines = WSplines(self.obj_name)"
         
     def props(self):
         yield PropWrapper(name='bevel_depth',           vtype='float',  prop=None, readonly=False, shortcut=None, foreach=True)
@@ -973,20 +949,29 @@ class ObjectGenerator(WrapperGenerator):
         
     def init(self):
         
-        self.is_root            = True
-        
-        self.init_mode          = 'PROPERTY'
+        self.init_args          = ["name"]
         self.class_name         = "Object"
         self.root_class         = "WObjectRoot"
-        self.obj                = ""
+        self.obj                = "bpy.data.objects[self.name]"
         self.bname              = "object"
         
-        
         self.gen_coll           = True
-        self.coll_init_mode     = 'PROPERTY'
-        self.coll_top_obj       = "bpy.data.collections[self.name]"
-        self.coll_obj           = ".objects"
+        self.coll_init_args     = ["coll_name"]
+        self.coll_obj           = "bpy.data.collections[self.coll_name].objects"
         self.coll_bname         = "objects"
+        
+        
+    def init_method(self):
+        yield tab + "def __init__(name):"
+        yield tab2 + "self.name = name"
+        
+    def coll_init_method(self):
+        yield tab + "def __init__(self, coll_name):"
+        yield tab2 + "self.coll_name = coll_name"
+        
+    def getitem_method(self):
+        yield tab + "def __getitem__(self, index):"
+        yield tab2 + f"return self.item_class({self.coll_obj}[index].name)"
         
     def props(self):
         yield PropWrapper(name='active_material_index',              vtype='int',   prop=None, readonly=False, shortcut=None, foreach=True)
@@ -1047,6 +1032,272 @@ class ObjectGenerator(WrapperGenerator):
         yield MethodWrapper("track_to",  {"location": "V3"}, None,    None)
         yield MethodWrapper("distances", {"location": "V3"}, "float", "distance")
         
+        
+# *****************************************************************************************************************************
+# Particle
+
+class ParticleGenerator(WrapperGenerator):
+        
+    def init(self):
+        
+        self.init_args          = ["obj_name", "owner_index"]
+        self.indexed            = True
+        self.class_name         = "Particle"
+        self.obj                = "bpy.data.objects[self.obj_name].particle_systems[self.wowner_index].particles[self.windex]"
+        self.bname              = "particle"
+        
+        self.gen_coll           = True
+        self.coll_obj           = "bpy.data.objects[self.obj_name].particle_systems[self.wowner_index].particles"
+        self.coll_bname         = "particles"
+        
+        
+    def props(self):
+        yield PropWrapper(name='alive_state',     vtype='str',    prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='angular_velocity',vtype='V3',     prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='birth_time',      vtype='float',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='die_time',        vtype='float',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='is_exist',        vtype='bool',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='is_visible',      vtype='bool',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='lifetime',        vtype='float',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='location',        vtype='V3',     prop=None, readonly=False, shortcut="",   foreach=True)
+        yield PropWrapper(name='prev_angular_velocity',vtype='V3',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='prev_location',   vtype='V3',     prop=None, readonly=False, shortcut="prev", foreach=True)
+        yield PropWrapper(name='prev_rotation',   vtype='V4',     prop=None, readonly=False, shortcut="prevq", foreach=True)
+        yield PropWrapper(name='prev_velocity',   vtype='V3',     prop=None, readonly=False, shortcut="prevv", foreach=True)
+        yield PropWrapper(name='rotation',        vtype='V4',     prop=None, readonly=False, shortcut="q",  foreach=True)
+        yield PropWrapper(name='size',            vtype='float',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='velocity',        vtype='V3',     prop=None, readonly=False, shortcut="v",  foreach=True)
+
+
+# =============================================================================================================================
+# Particle settings
+        
+class ParticleSettingsGenerator(WrapperGenerator):
+        
+    def init(self):
+        
+        self.init_args          = ["obj_name", "owner_index"]
+        self.class_name         = "ParticleSettings"
+        self.obj                = "bpy.data.objects[self.obj_name].particle_systems[self.wowner_index].settings"
+        self.bname              = "settings"
+        
+        self.gen_coll           = False
+        
+    def props(self):
+        yield PropWrapper(name='adaptive_angle',vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='adaptive_pixel',vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='angular_velocity_factor',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='angular_velocity_mode',vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='apply_effector_to_children',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='apply_guide_to_children',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='bending_random',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='branch_threshold',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='brownian_factor',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_length',  vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_length_threshold',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_nbr',     vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_parting_factor',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_parting_max',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_parting_min',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_radius',  vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_roundness',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_size',    vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_size_random',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='child_type',    vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='clump_factor',  vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='clump_noise_size',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='clump_shape',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='color_maximum', vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='count',         vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='courant_target',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='create_long_hair_children',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='damping',       vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='display_color', vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='display_method',vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='display_percentage',vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='display_size',  vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='display_step',  vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='distribution',  vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='drag_factor',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='effect_hair',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='effector_amount',vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='emit_from',     vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='factor_random', vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='frame_end',     vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='frame_start',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='grid_random',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='grid_resolution',vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='hair_length',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='hair_step',     vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='hexagonal_grid',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='integrator',    vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_grid',   vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='is_embedded_data',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='is_fluid',      vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='is_library_indirect',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='jitter_factor', vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='keyed_loops',   vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='keys_step',     vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink',          vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_amplitude',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_amplitude_clump',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_amplitude_random',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_axis',     vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_axis_random',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_extra_steps',vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_flat',     vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_frequency',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='kink_shape',    vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='length_random', vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='library',       vtype='???',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='lifetime',      vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='lifetime_random',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='line_length_head',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='line_length_tail',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='lock_boids_to_surface',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='mass',          vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='material',      vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='material_slot', vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='name',          vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='name_full',     vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='normal_factor', vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='object_align_factor',vtype='V3',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='object_factor', vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='particle_factor',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='particle_size', vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='path_end',      vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='path_start',    vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='phase_factor',  vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='phase_factor_random',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='physics_type',  vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='radius_scale',  vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='react_event',   vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='reactor_factor',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='render_step',   vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='render_type',   vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='rendered_child_count',vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='root_radius',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='rotation_factor_random',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='rotation_mode', vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='roughness_1',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='roughness_1_size',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='roughness_2',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='roughness_2_size',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='roughness_2_threshold',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='roughness_end_shape',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='roughness_endpoint',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='shape',         vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='show_guide_hairs',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='show_hair_grid',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='show_health',   vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='show_number',   vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='show_size',     vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='show_unborn',   vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='show_velocity', vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='size_random',   vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='subframes',     vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='tag',           vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='tangent_factor',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='tangent_phase', vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='time_tweak',    vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='timestep',      vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='tip_radius',    vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='trail_count',   vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='twist',         vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='type',          vtype='str',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_absolute_path_time',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_adaptive_subframes',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_advanced_hair',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_close_tip', vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_clump_curve',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_clump_noise',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_collection_count',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_collection_pick_random',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_dead',      vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_die_on_collision',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_dynamic_rotation',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_emit_random',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_even_distribution',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_fake_user', vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_global_instance',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_hair_bspline',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_modifier_stack',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_multiply_size_mass',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_parent_particles',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_react_multiple',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_react_start_end',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_regrow_hair',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_render_adaptive',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_rotation_instance',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_rotations', vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_roughness_curve',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_scale_instance',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_self_effect',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_size_deflect',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_strand_primitive',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_twist_curve',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_velocity_length',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_whole_collection',vtype='bool', prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='userjit',       vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='users',         vtype='int',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='virtual_parents',vtype='float',prop=None, readonly=False, shortcut=None, foreach=True)
+
+
+# =============================================================================================================================
+# Particle system
+
+class ParticleSystemGenerator(WrapperGenerator):
+        
+    def init(self):
+        
+        self.init_args          = ["obj_name"]
+        self.indexed            = True
+        self.class_name         = "ParticleSystem"
+        self.obj                = "bpy.data.objects[self.obj_name].particle_systems[self.windex]"
+        self.bname              = "particle_system"
+        
+        self.gen_coll           = False
+        
+    def init_code(self):
+        yield tab2 + "self.wsettings  = WParticleSettings(self.obj_name, self.windex)"
+        yield tab2 + "self.wparticles = WParticles(self.obj_name, self.windex)"
+        
+    def props(self):
+        yield PropWrapper(name='child_seed',                    vtype='int',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='dt_frac',                       vtype='float', prop=None, readonly=True,  shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_clump',     vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_density',   vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_field',     vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_kink',      vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_length',    vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_rotation',  vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_roughness_1',vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_roughness_2',vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_roughness_end',vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_size',      vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_tangent',   vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_twist',     vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='invert_vertex_group_velocity',  vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='is_editable',                   vtype='bool',  prop=None, readonly=True,  shortcut=None, foreach=True)
+        yield PropWrapper(name='is_edited',                     vtype='bool',  prop=None, readonly=True,  shortcut=None, foreach=True)
+        yield PropWrapper(name='is_global_hair',                vtype='bool',  prop=None, readonly=True,  shortcut=None, foreach=True)
+        yield PropWrapper(name='ps_name',                       vtype='str',   prop="name", readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='seed',                          vtype='int',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_hair_dynamics',             vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='use_keyed_timing',              vtype='bool',  prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_clump',            vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_density',          vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_field',            vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_kink',             vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_length',           vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_rotation',         vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_roughness_1',      vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_roughness_2',      vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_roughness_end',    vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_size',             vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_tangent',          vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_twist',            vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
+        yield PropWrapper(name='vertex_group_velocity',         vtype='str',   prop=None, readonly=False, shortcut=None, foreach=True)
 
 
 # *****************************************************************************************************************************
@@ -1056,13 +1307,9 @@ class TextureGenerator(WrapperGenerator):
         
     def init(self):
         
-        self.is_root            = True
-        
-        self.gen_wrapper        = True
-        self.init_mode          = 'PROPERTY'
+        self.init_args          = ["name"]
         self.class_name         = "Texture"
-        self.top_obj            = "bpy.data.textures[self.name]"
-        self.obj                = ""
+        self.obj                = "bpy.data.texture[self.name]"
         self.bname              = "texture"
         
         self.gen_coll           = False
@@ -1109,17 +1356,13 @@ class KeyFrameGenerator(WrapperGenerator):
     
     def init(self):
         
-        self.gen_wrapper        = True
-        self.init_mode          = 'PROPERTY'
+        self.init_args          = []
         self.class_name         = "KeyFrame"
-        self.top_obj            = "bpy.data.textures[self.name]"
-        self.obj                = ""
+        self.obj                = "bpy.data.textures[self.name]"
         self.bname              = "key_frame"
         
         
         self.gen_coll           = True
-        self.coll_init_mode     = 'PROPERTY'
-        self.coll_top_obj       = "bpy.data.textures[self.name]"
         self.coll_obj           = "bpy.data.textures[self.name]"
         self.coll_bname         = "key_frames"
         

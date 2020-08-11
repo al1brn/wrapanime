@@ -188,7 +188,7 @@ class ArrayOf_DEPRECATED():
 
 class Wrapper():
 
-    def __init__(self, root_wrapper=None, wowner=None, index=None):
+    def __init__DEPRECATED(self, root_wrapper=None, wowner=None, index=None):
 
         """
         if type(name) is str:
@@ -202,7 +202,7 @@ class Wrapper():
                     f"{name} is not valid for initialization"
                     )
         """
-                
+        
         if root_wrapper is not None:
             self.root_wrapper = root_wrapper
         if wowner is not None:
@@ -211,7 +211,7 @@ class Wrapper():
             self.windex = index
             
     @property
-    def top_obj(self):
+    def top_obj_DEPRECATED(self):
         return self.root_wrapper.top_obj
             
             
@@ -515,7 +515,7 @@ class WSplinesRoot(Wrapper):
     def new(self, type='BEZIER'):
         index = len(self.splines)
         self.splines.new(type)
-        return self.item_class(self.root_wrapper, index=index)
+        return self.item_class(self.obj_name, windex=index)
     
     def get_bpoints(self, index):
         return self[index].bpoints
