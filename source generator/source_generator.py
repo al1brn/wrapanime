@@ -28,7 +28,7 @@ def wrappers_file():
         for line in gen.wrapper_code():
             yield line
             
-        for line in gen.arrayof_code():
+        for line in gen.collection_code():
             yield line
     
     for line in generate(wmaps.MeshVertexGenerator()):
@@ -62,9 +62,6 @@ def wrappers_file():
     for line in generate(wmaps.ParticleGenerator()):
         yield line
         
-    for line in generate(wmaps.ParticleSettingsGenerator()):
-        yield line
-        
     for line in generate(wmaps.ParticleSystemGenerator()):
         yield line
    
@@ -92,7 +89,7 @@ file_path = '/Users/alain/OneDrive/CloudStation/Blender/dev/scripts/modules/wrap
 
 
 
-file_path = "/Users/alain.bernard@loreal.com/wrapanime/wrappers/generated_wrappers.py"
+#file_path = "/Users/alain.bernard@loreal.com/wrapanime/wrappers/generated_wrappers.py"
 
 write_code(file_path)
     

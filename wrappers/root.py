@@ -187,45 +187,13 @@ class ArrayOf_DEPRECATED():
 
 
 class Wrapper():
-
-    def __init__DEPRECATED(self, root_wrapper=None, wowner=None, index=None):
-
-        """
-        if type(name) is str:
-            self.name = name
-        else:
-            try:
-                self.name = name.name
-            except:
-                raise WrapException(
-                    "Wrapper initialization error: initialization needs either or name or an object with an name attribute.",
-                    f"{name} is not valid for initialization"
-                    )
-        """
-        
-        if root_wrapper is not None:
-            self.root_wrapper = root_wrapper
-        if wowner is not None:
-            self.wowner = wowner
-        if index is not None:
-            self.windex = index
-            
-    @property
-    def top_obj_DEPRECATED(self):
-        return self.root_wrapper.top_obj
-            
-            
-    # Must implement two properties
-    # top_obj
-    # obj for objects wrappers and coll for coll wrappers
-                
-    #@property
-    #def top_obj(self):
-    #    pass
     
-    #@property
-    #def obj(self):
-    #    pass
+    def __init__(self, top_wrapper):
+        self.top_wrapper = top_wrapper
+        
+    @property
+    def top_object(self):
+        return self.top_wrapper.top_object
         
     def __repr__(self):
         name = type(self).__name__.split(".")[-1]
@@ -236,6 +204,13 @@ class Wrapper():
 
     def erase_cache(self):
         pass
+    
+    # ----------------------------------------------------------------------------------------------------
+    # Evaluated version
+    
+    @property
+    def evaluated_get(self):
+        return self.struct.evaluated_get(bpy.context.evaluated_depsgraph_get())
     
     # ----------------------------------------------------------------------------------------------------
     # Key frame animation
@@ -335,11 +310,22 @@ class Wrapper():
 # The Object wrapper will use this class and provide ArraOf methods            
             
 class WObjectRoot(Wrapper):
+    
+    def __init__(self, name):
+        super().__init__(None)
+        self.name       = name
+        self._evaluated = None
 
     @property
-    def eval_object(self):
-        return self.object.evaluated_get(bpy.context.evaluated_depsgraph_get())
-
+    def top_object(self):
+        return bpy.data.objects[self.name] if self._evaluated is None else self._evaluated
+        
+    @property
+    def evaluated(self):
+        wrapper = type(self)(self.name)
+        wrapper._evaluated = bpy.data.objects[self.name].evaluated_get(bpy.context.evaluated_depsgraph_get())
+        return wrapper
+    
     @property
     def full_matrix(self):
         return self.object.matrix_world

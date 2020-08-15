@@ -44,29 +44,6 @@ def to_vector(value, dim=3):
     
 class WObject(wgen.WObject):
     
-    def __init__(self, name, evaluated=False):
-        super().__init__(name)
-        self.evaluated = evaluated
-        if self.evaluated:
-            self._top_obj = bpy.data.objects[name].evaluated_get(bpy.context.evaluated_depsgraph_get())
-            
-    @property
-    def top_obj(self):
-        if self.evaluated:
-            return self._top_obj
-        else:
-            return bpy.data.objects[self.name]
-        
-    def evaluated(self):
-        return WObject(self.name, evaluated=True)
-    
-    @classmethod
-    def New(cls, name, type, **kwargs):
-        bpy.ops.object.add(type=type, **kwargs)
-        obj =  bpy.context.active_object
-        obj.name = name
-        return cls(obj.name)
-    
     # ----------------------------------------------------------------------------------------------------
     # Transform an array of vertices
     
@@ -105,11 +82,11 @@ class WMeshObject(WObject):
         obj = blender.get_object(name, 'MESH')
         super().__init__(obj.name)
 
-        self.wmesh              = wgen.WMesh(self)
-        self.wvertices          = wgen.WMeshVertices(self)
-        self.wedges             = wgen.WEdges(self)
-        self.wloops             = wgen.WLoops(self)
-        self.wpolygons          = wgen.WPolygons(self)
+        self.wmesh              = wgen.WMesh(self.object.name)
+        self.wvertices          = wgen.WMeshVertices(self.object.name)
+        self.wedges             = wgen.WEdges(self.object.name)
+        self.wloops             = wgen.WLoops(self.object.name)
+        self.wpolygons          = wgen.WPolygons(self.object.name)
 
         self._surface           = None
         self.surface_sk         = None
@@ -386,8 +363,8 @@ class WCurveObject(WObject):
         obj = blender.get_object(name, 'CURVE')
         super().__init__(obj.name)
         
-        self.wcurve   = wgen.WCurve(self)
-        self.wsplines = wgen.WSplines(self)
+        self.wcurve   = wgen.WCurve(self.object.name)
+        self.wsplines = wgen.WSplines(self.object.name)
         
     # ---------------------------------------------------------------------------
     # New Curve object

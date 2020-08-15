@@ -28,6 +28,7 @@ from wrapanime.utils      import blender     as blender
 #from wrapanime.wrappers  import root        as root
 from wrapanime.wrappers   import wrappers    as wrappers
 from wrapanime.wrappers   import duplicator  as duplicator
+from wrapanime.wrappers   import particles   as particles
 from wrapanime.mesh       import surface     as surface
 from wrapanime.mesh       import meshbuilder as meshbuilder
 
@@ -51,6 +52,7 @@ WMeshObject     = wrappers.WMeshObject
 WCurveObject    = wrappers.WCurveObject
 
 Duplicator      = duplicator.Duplicator
+Particles       = particles.Particles
 
 wrap_collection   = blender.wrap_collection
 hidden_collection = blender.hidden_collection

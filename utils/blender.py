@@ -72,10 +72,12 @@ def wrap_collection(name=None):
     if name is None:
         return get_collection("WrapAnime", create=True)
     
-    return create_collection(name, parent_name="WrapAnime")
+    cname = name if name[:2] == "W " else "W " + name
+    
+    return create_collection(cname, parent_name="WrapAnime")
 
 def hidden_collection():
-    return wrap_collection("Hidden")
+    return wrap_collection("W Hidden")
 
 # *****************************************************************************************************************************
 # *****************************************************************************************************************************
@@ -478,8 +480,6 @@ def name_to_path_index(obj, name):
                 f"Incorrect animation path: '{name}' is not valid for {obj}"
                 )
             
-    print("DATA PATH", name, ">>>>", obj, parts[-1], index)
-            
     return ob, parts[-1], index
 
 # ----------------------------------------------------------------------------------------------------
@@ -644,7 +644,29 @@ def kf_interval(obj, name, frame0, frame1, value0, value1, interpolation='LINEAR
     kf.interpolation = interpolation
     
     
+# *****************************************************************************************************************************
+# *****************************************************************************************************************************
+# Particles
     
+def getcreate_particles(obj):
+    
+    if len(obj.particle_systems) == 0:
+        
+        obj.modifiers.new("WParticles", type='PARTICLE_SYSTEM')
+        part = obj.particle_systems[0]
+    
+        settings = part.settings
+        settings.emit_from = 'VERT'
+        settings.physics_type = 'NO'
+        settings.particle_size = 0.1
+        
+        #settings.render_type = 'OBJECT'
+        #settings.dupli_object = bpy.data.objects['Cube']
+        #settings.show_unborn = True
+        #settings.use_dead = True    
+    
+    return obj.particle_systems[0]
+
     
     
 
